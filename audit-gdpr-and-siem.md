@@ -64,7 +64,7 @@ On Postgres, entries are kept until the workspace is deleted. On the file store,
 ### 2. Reading and exporting
 
 - `GET /api/audit` (`audit.view`, admin) returns the latest **100** entries, newest first. The file store returns all of its entries for the workspace.
-- `GET /api/audit/export` (`audit.view`) returns the same entries as CSV, with columns timestamp, actor, action, resource, ip, details, hash and prevHash. Cells that start with `=`, `+`, `-` or `@` are neutralised, so a spreadsheet can't run them.
+- `GET /api/audit/export` (`audit.view`) returns the same entries as CSV, with columns timestamp, actor, action, resource, ip, details, hash and prevHash. Cells that start with `=`, `+`, `-`, `@`, a tab or a carriage return are neutralised, so a spreadsheet can't run them.
 
 ### 3. GDPR
 

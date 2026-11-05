@@ -205,15 +205,16 @@ Found while reading the code. These are listed as they are; fixing them would be
    | Requests per minute | ✅ | ✅ | ❌ | ✅ |
    | Tokens per minute (check) | ✅ | ✅ | ❌ | ❌ (counted, never checked) |
    | Monthly budget | ✅ | ✅ | ❌ | ✅ |
+   | Agent limit | ✅ (`agentName` from the request) | ✅ (`agentName` from the request) | ✅ (fixed name) | ❌ |
    | Prompt capture | ✅ | ✅ | ✅ | ❌ |
    | Fitness headers | ✅ | ✅ | ✅ | Task type only |
 
-   The biggest gap is that `/v1/chat/completions` has **no budget and no rate limit**, although its spend counts toward the OpenAI budget.
+   The biggest gap is that `/v1/chat/completions` has **no budget and no rate limit**, although its spend counts toward the OpenAI budget. The Azure route skips the agent limit: a code comment says it's "checked against the run's real name further down", but nothing further down checks it, so Azure calls can add agents beyond the plan's limit.
 2. **No streaming.** The gateway waits for the full response (`.json()`). Requests with `stream: true` aren't supported.
 3. **Failed calls aren't recorded.** Provider errors, timeouts and blocked calls don't become runs, so failure rates and retry costs on the dashboard only come from passive ingest.
 4. **Fixed agent names.** Except on Azure, every run gets a fixed agent name ("Gateway Proxy Agent" and so on). `agentName` in the request is used for the plan's agent cap but not saved on the run, so all gateway traffic shows as one agent per provider.
 5. **Extra fields go to the provider.** `agentName`, `workflow` and `team` are read from the request body, but the body is forwarded unchanged, so the provider also receives them.
 6. **Hard-coded run fields.** `workflow: "github-actions-ci"`, the tags and the notes on `/v1/responses` come from the original demo, so they're wrong for other uses. `environment` is always `production`, and `autonomyLevel` and `userSatisfaction` are fixed per route. These feed the control score.
 7. **The budget is checked against spend so far, not the coming call.** One call can go over the budget; the next one is refused.
-8. **The plan check runs twice** on `/v1/messages` and `/v1/responses`. It does no harm, but it's duplicated code.
+8. **The "gateway in plan" check runs twice** on `/v1/messages` and `/v1/responses` (`checkGatewayAllowed`, once before and once after finding the connector). It does no harm, but it's duplicated code.
 9. **Not subject to the production certification gate**, unlike passive ingest. Every gateway run is marked `production`, so an uncertified agent can run in production through the gateway.

@@ -25,7 +25,7 @@ This document describes the architecture **today**. It's written from the code, 
 | --- | --- |
 | `server.js` | 5,494 lines, about 110 route blocks |
 | `public/app.js` | 6,522 lines (dashboard SPA) |
-| `src/` | About 50 modules |
+| `src/` | About 60 modules (59 `.js` files) |
 | `db/migrations/` | 29 SQL files |
 | `test/` | 51 test files (`node --test`), plus Gherkin features (`behave`) |
 
@@ -174,7 +174,7 @@ About 110 routes. The groups are listed in `CLAUDE.md` (API surface) and in each
 
 ## Dashboard / UI
 
-There's one SPA (`index.html` + `app.js`, about 25 requests per load) with Overview, Token Coach, Activity, Governance, Certification, Reports and Admin. Older and secondary pages (`/dashboard`, `/setup`, `admin.html`, `leadership.html`, `storyline.html`) are served from `public/`.
+There's one SPA (`index.html` + `app.js`, about 25 requests per load) with Overview, Token Coach, Activity, Governance, Certification, Reports and Admin. Older and secondary pages (`/dashboard`, `admin.html`, `leadership.html`, `storyline.html`) are served from `public/`; `/setup` serves the main SPA page again.
 
 ## Changes by file
 

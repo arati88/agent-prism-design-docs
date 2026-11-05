@@ -206,6 +206,7 @@ Migration 025 runs on startup when `RUN_MIGRATIONS_ON_STARTUP=true`, or with `np
 
 ## Known limitations
 
-- Like the other Copilot endpoints, this uses the first Copilot connector that has an org and token. If a tenant still has an older connector, that's the one we'll read from.
+- Like the other Copilot endpoints, this uses the most recently saved Copilot connector that has an org and token. (It used to use the oldest one; that was fixed in the "most recently saved Copilot connector" change.) Saving the card again adds a new connector, so the new one starts with no stored budget results.
+- The list of seats over the cap names people, so since the security fixes of 22 October 2026 it's shown only to admins (`reports.view`). Other users see the totals only.
 - The numbers are only as current as GitHub's own budget figures, plus up to 15 minutes of caching on our side.
 - Seats under the cap aren't shown with their percentage. Easy to add later if people want it.

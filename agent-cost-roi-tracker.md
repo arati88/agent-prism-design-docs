@@ -41,7 +41,7 @@ This document describes the tracker **today**. It's written from the code, not a
 | `src/roi.js` | `computeRoi` |
 | `src/jobs/session-timeout.js` | Marks idle sessions timed out (30 minutes) |
 | `public/dashboard.html` | The `/dashboard` page: polls `/api/metrics/summary` every 5 seconds |
-| `server.js` → `requireBasicAuth` | HTTP Basic Auth on `/dashboard` and `/setup`, using `DASHBOARD_USERNAME` / `DASHBOARD_PASSWORD` |
+| `server.js` → `requireBasicAuth` | HTTP Basic Auth on `/dashboard` only, using `DASHBOARD_USERNAME` / `DASHBOARD_PASSWORD` |
 | `getPlatformStatus()` | "Connected" platforms, from server environment keys |
 | Webhooks | `/api/ingest/claude` (`anthropic-signature` or `x-webhook-signature`), `/api/ingest/copilot` (`x-hub-signature-256`), `/api/ingest/generic` |
 
@@ -68,7 +68,7 @@ This document describes the tracker **today**. It's written from the code, not a
    - bootstrap a workspace once with `POST /api/bootstrap` (platform admin; a second call returns `409 already_bootstrapped`).
 2. **Report**: open a session, send usage events, mark it completed (see [sessions](sessions-and-timeout.md)).
 3. **Read**: `/api/metrics/summary` runs the session timeout, then returns active counts, cost for today and 30 days by platform, session ROI for both, the stale-price flag and platform status.
-4. **Show**: `/dashboard` asks for Basic Auth, then reads the API key from `localStorage` and polls the summary every 5 seconds. It shows dashes when there's no key.
+4. **Show**: `/dashboard` asks for Basic Auth, then reads the API key from `localStorage` and polls the summary every 5 seconds. When there's no key, it asks for one in a browser pop-up and saves it in `localStorage`.
 
 ## API
 
@@ -83,7 +83,7 @@ See [sessions and timeout](sessions-and-timeout.md#api) for every route. `GET /a
 
 ## Dashboard / UI
 
-The **`/dashboard`** page has four cards (Active agents, Agent cost, ROI with its assumptions and negative values in red, Platform status) and a stale-price banner. The main dashboard (`/`) links to it from the top bar. None of these numbers appear in the main dashboard itself.
+The **`/dashboard`** page has four cards (Active agents, Agent cost, ROI with its assumptions and negative values in red, Platform status) and a stale-price banner. Nothing in the main dashboard (`/`) links to it; it's only reached by typing `/dashboard`. None of these numbers appear in the main dashboard itself.
 
 ## Changes by file
 
@@ -109,15 +109,15 @@ These are the files the feature lives in today. Nothing changes in this document
 | Next.js API routes, SQLite / Turso, Drizzle | Raw `node:http` in `server.js`; file store or Postgres |
 | `config/pricing.yaml` | `config/pricing.json`, reloaded when it changes |
 | Single operator, no multi-tenancy | Workspaces and API keys; the page still uses one key from the browser |
-| Basic Auth on `/dashboard` **and `/api/`** | Basic Auth on `/dashboard` and `/setup` only. APIs use workspace credentials |
+| Basic Auth on `/dashboard` **and `/api/`** | Basic Auth on `/dashboard` only. APIs use workspace credentials |
 | Real usage from Claude and Copilot APIs | Usage is **reported** by the integration. Copilot data from GitHub is a separate feature ([Copilot connector](copilot-connector-and-sync.md)) |
 
 ## Known limitations
 
 Found while reading the code. These are listed as they are; fixing them would be separate work.
 
-1. **The `/dashboard` page doesn't work for normal users.** It reads an API key from the browser's `localStorage` (`acp_api_key`). Sign-in no longer creates one, and older ones were revoked, so after the Basic Auth prompt the page shows dashes. A user would have to paste a key into the browser's storage by hand.
-2. **Two sign-ins for one page.** The page is behind a shared Basic Auth username and password (the same for every workspace), and then needs a workspace API key as well. Production refuses to start without `DASHBOARD_USERNAME` / `DASHBOARD_PASSWORD`, although they only protect this page and `/setup`.
+1. **The `/dashboard` page doesn't work for normal users.** It ignores the dashboard sign-in and reads an API key from the browser's `localStorage` (`acp_api_key`). Sign-in no longer puts one there, and older ones were revoked. After the Basic Auth prompt the page asks for an API key in a browser pop-up, so a user has to create a key in Admin → API keys and paste it. That keeps a long-lived key in the browser's storage, and it isn't linked from the main dashboard.
+2. **Two sign-ins for one page.** The page is behind a shared Basic Auth username and password (the same for every workspace), and then needs a workspace API key as well. Production refuses to start without `DASHBOARD_USERNAME` / `DASHBOARD_PASSWORD`, although they only protect this one page.
 3. **The setup guide is out of date:**
    - It says to save the bootstrap `apiKey` "to log in to the main dashboard". The main dashboard uses email and password (or SSO) now.
    - It says Basic Auth can be left blank "to skip auth in dev". That's true, but production won't start without it.

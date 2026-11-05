@@ -92,7 +92,7 @@ e.g. acp_3f9a1c07b2e4…
 - **Default plan**: `enterprise-trial`, or the license's tier if the license doesn't cover a trial.
 - **License ceiling**: a plan above what the installation's license covers is refused (`403 plan_exceeds_license`). The same check applies to `POST /api/admin/tenant/plan`.
 - A duplicate name or admin email is refused with `409 conflict` (Postgres).
-- No Copilot connector placeholder is created, unlike bootstrap.
+- The Copilot connector placeholder is created too, as in bootstrap, but it isn't included in the response.
 
 On a **single-tenant license** (a customer's own installation) every workspace gets the license's tier, whatever plan is stored. On a **multi-tenant license** (our hosted service) each workspace gets its own plan, capped at the license tier (`effectivePlanName` in `src/license.js`).
 
@@ -242,7 +242,7 @@ Not tested yet, and worth adding:
 
 Found while reading the code. These are listed as they are; fixing them would be separate work.
 
-1. **A workspace can't be suspended or deleted.** Workspaces have a `status`, but there's no route to change it. API keys and tokens don't check it either: only password login does. Even if a workspace were marked inactive in the database, its keys would keep working.
+1. **A workspace can't be suspended or deleted.** Workspaces have a `status`, but there's no route to change it. Password login, dashboard sessions, invites and token refresh (Postgres) check it, but API keys and the access tokens made from them don't. Even if a workspace were marked inactive in the database, its keys would keep working.
 2. **Default keys act as owner.** The key returned by bootstrap and provisioning, and any key the operator issues, has no recorded role, so it has full owner power, including erasing data. They're meant for first setup, but nothing prompts anyone to replace them with narrower keys.
 3. **`POST /api/admin/api-keys` without a `tenantId` picks the first workspace.** On a multi-workspace installation, a forgotten `tenantId` silently gives a key for the wrong customer.
 4. **Keys never expire.** There's no expiry date and no rotation reminder. `lastUsedAt` is recorded but nothing warns about old or unused keys.
@@ -251,3 +251,4 @@ Found while reading the code. These are listed as they are; fixing them would be
 7. **The file store checks every key on every request.** It hashes the incoming key and compares it with all stored keys, then rewrites the whole state file to update `lastUsedAt`. That's fine for demos but slow with many keys or much traffic. Postgres looks keys up by prefix instead.
 8. **Provisioning doesn't check the license's multi-tenant flag.** A single-tenant license can still have extra workspaces created; they all get the license tier. Whether that's allowed is a licensing decision that isn't enforced here.
 9. **Workspace isolation mostly depends on every query including the workspace id.** Postgres row-level security exists on the main tables, but on most of them it doesn't apply when the app connects as the table owner, and newer tables have none (see [storage backends](storage-backends-and-migrations.md)). The file backend has no second layer at all. A future query that forgets `tenant_id` could leak data, and only tests would catch it.
+10. **On Postgres, the bootstrap response shows the wrong plan.** The workspace is stored with the plan sent, or **free** by default, but the response always says `"plan": "enterprise-trial"`. The file backend returns the stored plan. Anyone reading the bootstrap response on Postgres is told they're on a trial plan that the workspace doesn't have.

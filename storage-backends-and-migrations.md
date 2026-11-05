@@ -22,7 +22,7 @@ This document describes how storage works **today**. It's written from the code,
 | `src/saas-store.js` | The one entry point for all storage. Loads the chosen backend once, the first time it's needed. For the file backend, makes every call run one at a time |
 | `src/stores/file-store.js` | File backend: reads and writes `data/app-state.json` |
 | `src/stores/postgres-store.js` | Postgres backend: pool, `withTenant`, every query, `ensureSchemaPatches` |
-| `db/migrations/*.sql` | 28 numbered schema changes, `000_base_schema.sql` to `027_api_key_role.sql` |
+| `db/migrations/*.sql` | 29 numbered schema changes, `000_base_schema.sql` to `027_api_key_role.sql` (two files share 016) |
 | `db/migrate.js` | Applies pending migrations (`npm run migrate`, or at start-up) |
 | `db/schema.sql` | An early snapshot of the schema (see limitations) |
 | `src/db-ssl.js` | TLS settings for every Postgres connection |
@@ -54,7 +54,7 @@ At start-up (`src/startup.js`): Postgres without `DATABASE_URL` stops the server
 
 The file backend keeps one JSON object with a list per kind of record: `tenants`, `users`, `apiKeys`, `connectors`, `runs`, `sessions`, `dashboardSessions`, `auditLogs`, `promptCaptures`, `certifications`, `idempotencyKeys`, `failedIngests`, `mlModelWeights` and others.
 
-Postgres has 32 tables:
+Postgres has 32 tables. 31 come from the migrations; `ml_model_weights` is only created by the start-up patches (`ensureSchemaPatches`), so a database set up with `npm run migrate` alone doesn't have it until the server starts:
 
 | Area | Tables |
 | --- | --- |
@@ -228,7 +228,7 @@ Not tested yet, and worth adding:
 Found while reading the code. These are listed as they are; fixing them would be separate work.
 
 1. **Two implementations of everything.** Every store function is written twice, once per backend: about 2,100 lines for file and 3,300 for Postgres. They can drift apart, and some functions exist on only one, where the entry point quietly returns an empty default. For example, ML model loading at start-up only happens on Postgres.
-2. **`db/schema.sql` is out of date.** It defines 9 tables, against 32 from the migrations, yet `CLAUDE.md` and `DEVELOPER.md` point to it as the schema, and `DEVELOPER.md` suggests running it by hand. Running it alone would give a database missing most tables. The migrations are the real source.
+2. **`db/schema.sql` is out of date.** It defines 9 tables, against 32 in a current database, yet `CLAUDE.md` and `DEVELOPER.md` point to it as the schema, and `DEVELOPER.md` suggests running it by hand. Running it alone would give a database missing most tables. The migrations are the real source.
 3. **Row-level security may not protect the app itself.** On most tables it's enabled but not forced, so it doesn't apply if the app connects as the table owner, which is the usual setup. Nothing checks or warns about this at start-up. Tables added later (`fleet_snapshots`, `daily_usage_*`, `failed_ingests`, `idempotency_keys`, `spend_blocks`, `team_assignments`, `tenant_plan_config` and others) have no row-level security at all.
 4. **Migrations only go forward.** There are no "down" migrations, so undoing a change means writing a new migration or restoring a backup.
 5. **Two migrations share the number 016** (`016_api_key_read_only.sql`, `016_plan_config_target_multiple.sql`). It works, because order is alphabetical, but numbers are no longer unique.

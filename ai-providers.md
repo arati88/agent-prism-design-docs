@@ -79,7 +79,7 @@ This document describes the switch **today**. It's written from the code, not as
 | --- | --- |
 | Azure OpenAI | `POST {endpoint}/openai/deployments/{deployment}/chat/completions?api-version=…`, with header `api-key` or `Authorization: Bearer <Entra token>` (scope `cognitiveservices.azure.com`) |
 | Bedrock | AWS SDK `ConverseCommand` (system, one user message, maxTokens, temperature 0.2), with an abort signal at the timeout |
-| Vertex | `POST https://{location}-aiplatform.googleapis.com/v1/projects/{p}/locations/{l}/endpoints/openapi/chat/completions`, with a Google access token |
+| Vertex | `POST https://{location}-aiplatform.googleapis.com/v1/projects/{p}/locations/{l}/endpoints/openapi/chat/completions` (host `aiplatform.googleapis.com` when the location is `global`), with a Google access token |
 | Anthropic | `POST https://api.anthropic.com/v1/messages`, `anthropic-version: 2023-06-01` |
 | Others | `POST {baseUrl}/chat/completions`, with a Bearer key when there is one |
 

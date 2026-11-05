@@ -36,7 +36,7 @@ We're keeping it simple :
 - **Per developer (seat)**, plus one overall figure for the org.
 - **GitHub's 28-day window**, the same as the report, not a calendar month. The panel shows the exact dates.
 - Hours per line and per prompt are **assumptions** in `config/pricing.json`. They're shown next to the result and hot-reload.
-- Copilot gets its own section, inside the Copilot panel where the rest of its data lives.
+- Copilot gets its own panel at the top of the Overview tab. The Copilot panel on the Admin tab keeps seats, budget caps and spend by model, with a link to it.
 
 ## Where the data comes from
 

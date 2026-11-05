@@ -57,7 +57,7 @@ This document describes hardening **today**. It's written from the code, not as 
 | `RATE_LIMIT_LOGIN_PER_MINUTE` | 20 | Sign-in, invite, OAuth token, per IP |
 | `RATE_LIMIT_ADMIN_FAILURES_PER_MINUTE` | 10 | Wrong `X-Admin-Secret` attempts, per IP |
 | `SHUTDOWN_TIMEOUT_MS` | 30,000 in production, 10,000 otherwise | Drain time |
-| `DASHBOARD_USERNAME`, `DASHBOARD_PASSWORD` | — | Basic Auth for `/dashboard` and `/setup` (required in production) |
+| `DASHBOARD_USERNAME`, `DASHBOARD_PASSWORD` | — | Basic Auth for `/dashboard` (required in production) |
 | `TRUST_PROXY` | off | Use `X-Forwarded-For` for the client IP |
 
 ## How it works
@@ -162,6 +162,6 @@ Found while reading the code. These are listed as they are; fixing them would be
 3. **Validation covers only some routes.** `SCHEMAS` exists for sessions, usage, login, bootstrap, connectors, ingest, team assignments, plan config, promotions and a few others. Many routes check their input by hand or not at all, and nothing makes sure every route is covered.
 4. **One body limit for everything.** 1 MB applies to every route, including gateway calls whose prompts can legitimately be larger, and batch ingest.
 5. **Inline styles are allowed** (`style-src 'unsafe-inline'`), so injected markup can still be styled to look real (see the Prompt Advisor escaping issue in [AI Advisor](ai-advisor-and-prompt-advisor.md)).
-6. **Basic Auth on `/dashboard` and `/setup` is one shared username and password** for the whole installation, compared outside the normal user and role system.
-7. **CORS doesn't allow the session header.** `X-Session-Token` and the provider headers (`anthropic-version`) aren't in the allowed headers, so cross-origin use only works with API keys.
+6. **Basic Auth on `/dashboard` is one shared username and password** for the whole installation, compared outside the normal user and role system. (`/setup` has no Basic Auth; it serves the main SPA page.)
+7. **CORS doesn't allow the session header or `PUT`.** `X-Session-Token` and the provider headers (`anthropic-version`) aren't in the allowed headers, so cross-origin use only works with API keys. `PUT` isn't in the allowed methods, so routes such as the key IP allowlist and SCIM `PUT /scim/v2/Users/{id}` can't be called from another origin in a browser.
 8. **Storyline and other demo pages are still served.** `storyline.html`, `leadership.html` and `admin.html` are reachable by URL in production, without sign-in.

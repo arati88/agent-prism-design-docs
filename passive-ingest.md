@@ -129,7 +129,7 @@ On the other three run routes, sending the same `id` twice **overwrites** the ea
 | **Auto-revoke** (`checkAutoRevoke`): a production run using a high-danger or unclassified tool that wasn't there when the agent was certified revokes the certificate and writes an audit entry | ✅ | ✅ | ✅ | ✅ |
 | **Audit log** entry "Telemetry Ingested" | ✅ | ❌ | ❌ | ❌ |
 | **Budget alert** to Slack (`SLACK_WEBHOOK_URL`) when the run cost more than its budget | ✅ | ❌ | ❌ | ❌ |
-| **AI task classification** in the background (`classifyTaskWithLLM`, falls back to the regex classifier), which updates the run's task type | ❌ | ✅ if `messages` sent | ❌ | ✅ if `messages` or `prompt` sent |
+| **AI task classification** in the background (`classifyTaskWithLLM`, falls back to the regex classifier), which updates the run's task type | ❌ | ✅ if `messages` sent | ❌ | ✅ if `prompt` sent (see limitation 9) |
 
 ### Retry queue for failed saves (`/api/ingest` only)
 
@@ -245,3 +245,4 @@ Found while reading the code. These are listed as they are; fixing them would be
 6. **Fleet ingest has no plan check**, so it doesn't count toward the plan's run cap and isn't gated by plan.
 7. **The first snapshot of a session is never counted.** That's on purpose, to avoid counting old activity as today's, but tokens used between the session starting and the collector's first push are lost.
 8. **Fleet daily usage uses the server's UTC date**, so a developer's late-evening work in some time zones counts toward the next day.
+9. **`/api/ingest/generic` ignores `messages` when classifying.** The code means "use `messages`, or else `prompt`", but because of operator precedence it always builds one message from `prompt`. A report with `messages` and no `prompt` is classified from empty text, so its task type isn't improved.

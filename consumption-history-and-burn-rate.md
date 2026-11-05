@@ -72,7 +72,7 @@ elapsed   = lastActivity − startTime, at least 1 minute
 burn rate = session cost so far ÷ elapsed hours
 ```
 
-If there are no start and end times (an older collector), burn rate is `null` and the hover text says "restart collector.js to see burn rate". For a running session, the hover text projects **cost + one hour at that rate**. For a finished one, it gives the average. The colour tone is warn at $5/hr or more. The Live Sessions total burn adds up the rates of active sessions.
+If there are no start and end times (an older collector), burn rate is `null` in Fleet Mode and the hover text says "restart collector.js to see burn rate". The single-machine scan returns `0` instead of `null` in that case. For a running session, the hover text projects **cost + one hour at that rate**. For a finished one, it gives the average. The colour tone is warn at $5/hr or more. The Live Sessions total burn adds up the rates of active sessions.
 
 ### 4. Always-visible notes
 
