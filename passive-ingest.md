@@ -129,7 +129,7 @@ On the other three run routes, sending the same `id` twice **overwrites** the ea
 | **Auto-revoke** (`checkAutoRevoke`): a production run using a high-danger or unclassified tool that wasn't there when the agent was certified revokes the certificate and writes an audit entry | ✅ | ✅ | ✅ | ✅ |
 | **Audit log** entry "Telemetry Ingested" | ✅ | ❌ | ❌ | ❌ |
 | **Budget alert** to Slack (`SLACK_WEBHOOK_URL`) when the run cost more than its budget | ✅ | ❌ | ❌ | ❌ |
-| **AI task classification** in the background (`classifyTaskWithLLM`, falls back to the regex classifier), which updates the run's task type | ❌ | ✅ if `messages` sent | ❌ | ✅ if `prompt` sent (see limitation 9) |
+| **AI task classification** in the background (`classifyTaskWithLLM`, falls back to the regex classifier), which updates the run's task type | ❌ | ✅ if `messages` sent | ❌ | ✅ if `prompt` sent (a report with only `messages` is classified from empty text) |
 
 ### Retry queue for failed saves (`/api/ingest` only)
 
@@ -240,9 +240,4 @@ Ingest issues I found:
 1. **Cost is whatever the agent reports.** Unlike the gateway and fleet ingest, the run routes don't calculate cost from tokens and `config/pricing.json`. An agent that sends tokens but no cost is recorded at **$0**, and a wrong cost is stored as sent.
 2. **A refused run can be wrongly marked as a duplicate.** On `/api/ingest` the duplicate key is recorded **before** the plan and certification checks. If a run is refused (402 or 403) and sent again after the agent is certified or the plan upgraded, within 24 hours, it gets `duplicate` back and is **never saved**.
 3. **The run routes don't behave the same.** Only `/api/ingest` has duplicate keys, the retry queue, the audit entry and budget alerts. On the other three, a failed save returns an error and the report is lost, unless the sender retries.
-4. **Missing `environment` means production.** An agent that doesn't send it is blocked until certified. That's the safe choice, but it often surprises new users.
-5. **Signatures are optional and shared.** The Claude and Copilot secrets are one value per server, not per workspace, and with no secret set anyone with a valid key can post. `/api/ingest` and `/api/ingest/generic` have no signature check at all; they rely on the Agent Prism key alone.
-6. **Fleet ingest has no plan check**, so it doesn't count toward the plan's run cap and isn't gated by plan.
-7. **The first snapshot of a session is never counted.** That's on purpose, to avoid counting old activity as today's, but tokens used between the session starting and the collector's first push are lost.
-8. **Fleet daily usage uses the server's UTC date**, so a developer's late-evening work in some time zones counts toward the next day.
-9. **`/api/ingest/generic` ignores `messages` when classifying.** The code means "use `messages`, or else `prompt`", but because of operator precedence it always builds one message from `prompt`. A report with `messages` and no `prompt` is classified from empty text, so its task type isn't improved.
+4. **Signatures are optional and shared.** The Claude and Copilot secrets are one value per server, not per workspace, and with no secret set anyone with a valid key can post. `/api/ingest` and `/api/ingest/generic` have no signature check at all; they rely on the Agent Prism key alone.

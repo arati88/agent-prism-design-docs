@@ -227,12 +227,7 @@ Not tested yet, and worth adding:
 
 Storage weaknesses:
 
-1. **Two implementations of everything.** Every store function is written twice, once per backend: about 2,100 lines for file and 3,300 for Postgres. They can drift apart, and some functions exist on only one, where the entry point quietly returns an empty default. For example, ML model loading at start-up only happens on Postgres.
-2. **`db/schema.sql` is out of date.** It defines 9 tables, against 32 in a current database, yet `CLAUDE.md` and `DEVELOPER.md` point to it as the schema, and `DEVELOPER.md` suggests running it by hand. Running it alone would give a database missing most tables. The migrations are the real source.
-3. **Row-level security may not protect the app itself.** On most tables it's enabled but not forced, so it doesn't apply if the app connects as the table owner, which is the usual setup. Nothing checks or warns about this at start-up. Tables added later (`fleet_snapshots`, `daily_usage_*`, `failed_ingests`, `idempotency_keys`, `spend_blocks`, `team_assignments`, `tenant_plan_config` and others) have no row-level security at all.
-4. **Migrations only go forward.** There are no "down" migrations, so undoing a change means writing a new migration or restoring a backup.
-5. **Two migrations share the number 016** (`016_api_key_read_only.sql`, `016_plan_config_target_multiple.sql`). It works, because order is alphabetical, but numbers are no longer unique.
-6. **Schema changes live in two places.** Some changes are both a migration and an entry in `ensureSchemaPatches`, so a new column has to be added to both or older databases miss it.
-7. **The file backend reads and writes the whole file on every call**, including every API key check. It gets slower as data grows, and it only works with one process. It's for development and demos only.
-8. **TLS isn't verified by default.** Without `DB_SSL_REJECT_UNAUTHORIZED=true` or `DB_SSL_CA`, the connection is encrypted but the database server's identity isn't checked.
-9. **Retention covers runs, prompt captures and sessions only.** Audit logs, fleet snapshots, daily usage and Copilot data aren't deleted by plan retention.
+1. **`db/schema.sql` is out of date.** It defines 9 tables, against 32 in a current database, yet `CLAUDE.md` and `DEVELOPER.md` point to it as the schema, and `DEVELOPER.md` suggests running it by hand. Running it alone would give a database missing most tables. The migrations are the real source.
+2. **Row-level security may not protect the app itself.** On most tables it's enabled but not forced, so it doesn't apply if the app connects as the table owner, which is the usual setup. Nothing checks or warns about this at start-up. Tables added later (`fleet_snapshots`, `daily_usage_*`, `failed_ingests`, `idempotency_keys`, `spend_blocks`, `team_assignments`, `tenant_plan_config` and others) have no row-level security at all.
+3. **TLS isn't verified by default.** Without `DB_SSL_REJECT_UNAUTHORIZED=true` or `DB_SSL_CA`, the connection is encrypted but the database server's identity isn't checked.
+4. **Retention covers runs, prompt captures and sessions only.** Audit logs, fleet snapshots, daily usage and Copilot data aren't deleted by plan retention.

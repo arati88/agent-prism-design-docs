@@ -213,14 +213,5 @@ Gaps in sign-in, SSO and SCIM:
 
 1. **`SSO_ONLY` only hides the password form.** The server still accepts `POST /api/auth/login`, so anyone with a password, including one set by invite or by the platform admin, can still sign in with it. A customer that requires SSO (and its MFA) doesn't really get it.
 2. **The demo login can expose and change a real workspace.** When `DEMO_EMAIL` and `DEMO_PASSWORD` are set, the password is public (`/api/login-config`) and the sign-in screen uses it automatically. The demo account is created in the **oldest active workspace**, which on a shared installation is a real customer's, and that workspace's plan is raised to enterprise-trial. If `DEMO_EMAIL` matches an existing person, their password is reset and their role lowered.
-3. **SSO serves one workspace per installation.** SSO users land in `OIDC_DEFAULT_TENANT_ID`, or in the only active workspace. With several workspaces and no default, SSO fails with `user_not_provisioned`. There's one identity provider per installation, not one per customer.
-4. **Anyone who can sign in to the identity provider gets an account.** Without group mapping, every person the provider lets through is created as a member (seats permitting). Nothing requires them to have been provisioned or invited first.
-5. **SSO breaks with more than one server process.** The pending `state` and `nonce` are kept in memory. With `npm run cluster`, the callback may reach a different worker and fail with `invalid_state`.
-6. **Weak spots in SCIM.** Only `userName eq` filtering, no paging (`startIndex` and `count` are ignored), no groups and no roles. SCIM can deactivate or delete the **last owner**: the last-owner check exists only on the Users page. The seat limit is reported as `403 invalidValue`, which IdPs may not expect.
-7. **Password rules differ.** Invite and reset links need 12 or more characters, but the platform-admin route and the sign-in form accept 8. There's no check against common or breached passwords, and no lockout apart from the rate limit of 20 a minute per IP.
-8. **The platform-admin password route doesn't sign the person out**, unlike a reset link.
-9. **Sessions last 7 days with no idle timeout**, whatever the customer's policy. Only signing out, a role change, deactivation or a password reset ends them early.
-10. **One email in two workspaces signs in to whichever matches first.** Password sign-in looks at every workspace for that email and takes the first account whose password matches.
-11. **OAuth details.** `client_id` is ignored, and a refreshed access token always has scopes `["*"]` instead of the key's own. Refreshing isn't rate limited or audited. Access tokens are signed with one shared secret (HS256).
-12. **SSO errors can leak internals.** An unexpected error in the callback puts its message in the redirect URL (`/?sso_error=…`).
-13. **No multi-factor authentication for password accounts.** MFA is available only through the identity provider when SSO is used.
+3. **Anyone who can sign in to the identity provider gets an account.** Without group mapping, every person the provider lets through is created as a member (seats permitting). Nothing requires them to have been provisioned or invited first.
+4. **No multi-factor authentication for password accounts.** MFA is available only through the identity provider when SSO is used.

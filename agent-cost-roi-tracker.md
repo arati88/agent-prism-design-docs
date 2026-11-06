@@ -117,13 +117,5 @@ Files involved:
 Problems with the tracker as it stands:
 
 1. **The `/dashboard` page doesn't work for normal users.** It ignores the dashboard sign-in and reads an API key from the browser's `localStorage` (`acp_api_key`). Sign-in no longer puts one there, and older ones were revoked. After the Basic Auth prompt the page asks for an API key in a browser pop-up, so a user has to create a key in Admin → API keys and paste it. That keeps a long-lived key in the browser's storage, and it isn't linked from the main dashboard.
-2. **Two sign-ins for one page.** The page is behind a shared Basic Auth username and password (the same for every workspace), and then needs a workspace API key as well. Production refuses to start without `DASHBOARD_USERNAME` / `DASHBOARD_PASSWORD`, although they only protect this one page.
-3. **The setup guide is out of date:**
-   - It says to save the bootstrap `apiKey` "to log in to the main dashboard". The main dashboard uses email and password (or SSO) now.
-   - It says Basic Auth can be left blank "to skip auth in dev". That's true, but production won't start without it.
-   - It describes `ANTHROPIC_API_KEY`/`GITHUB_TOKEN` as what makes a platform "connected". They only drive a status light on this page, unrelated to the workspace's connectors.
-   - Its `pricing.json` sample is old (no model rates, cache rates or Copilot seat prices).
-4. **"Connected" is the server's setting, not the workspace's** (see [health and resilience](health-metrics-and-resilience.md)).
-5. **It inherits the session limitations:** no OpenAI platform, no agent or team on a session, a timeout that runs only when metrics are read, and cost that isn't split by time (see [sessions](sessions-and-timeout.md)).
-6. **The ROI is the most optimistic one in the product.** Each completed session counts as 2 hours of a person's work at $85, so a cheap automated session shows ROI in the thousands (see [savings and ROI](savings-and-roi.md)).
-7. **Two dashboards that don't agree.** The main dashboard is built from runs; this page is built from sessions. The same agent can show different costs on each, and nothing explains the difference.
+2. **The ROI is the most optimistic one in the product.** Each completed session counts as 2 hours of a person's work at $85, so a cheap automated session shows ROI in the thousands (see [savings and ROI](savings-and-roi.md)).
+3. **Two dashboards that don't agree.** The main dashboard is built from runs; this page is built from sessions. The same agent can show different costs on each, and nothing explains the difference.

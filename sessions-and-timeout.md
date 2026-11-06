@@ -141,12 +141,6 @@ Not tested yet, and worth adding:
 Session issues I found:
 
 1. **OpenAI usage can't be reported.** The schemas only allow `claude`, `copilot` and `generic`, so `platform: "openai"` gets `400`, and the OpenAI pricing in `/api/usage` is never used. OpenAI users have to send `generic` with their own `cost_usd`.
-2. **Tokens without a platform cost $0.** `platform` is optional in `/api/usage` and defaults to `generic`, which only reads `cost_usd`. The session's own platform isn't used. Claude cache tokens are never priced here.
-3. **A session has no agent, team or model.** It only records a platform, so session cost and ROI can't be split by agent or team, and sessions aren't linked to runs.
-4. **The timeout runs only when someone reads the metrics.** If nobody calls those four routes, sessions stay "running" forever. When someone does, the sweep updates **every workspace's** sessions, which is extra work on a busy installation.
-5. **A timed-out session can still collect cost, and come back.** Usage after a timeout is added and updates last seen, but the status stays `timed_out`, so it's not counted as active. A `PATCH` can set it back to `running`. Timed-out and errored sessions never count as completed, so they add cost to the ROI but no value.
-6. **Window totals aren't split by time.** A session that started yesterday and was seen today counts its **whole** cost in "today". The same session appears in every window it touches, and "day" is UTC.
-7. **The session ROI rewards closing sessions.** Each completed session counts as 2 hours of a person's work, so a client that opens and completes many tiny sessions inflates the value (see [savings and ROI](savings-and-roi.md)).
-8. **The page that shows sessions doesn't work for signed-in users.** `/dashboard` reads an API key from the browser's `localStorage` (`acp_api_key`). Sign-in no longer puts one there, so the page asks for an API key in a browser pop-up, and a normal user has to create and paste one. The main dashboard doesn't show sessions at all.
-9. **No plan or rate limits just for sessions.** Opening sessions and adding usage aren't counted against the plan's run limits, and don't go through the certification gate.
-10. **Clients choose session ids.** Ids are only unique within a workspace, and anything up to 128 characters is accepted, so two integrations using the same id add to the same session.
+2. **A session has no agent, team or model.** It only records a platform, so session cost and ROI can't be split by agent or team, and sessions aren't linked to runs.
+3. **The timeout runs only when someone reads the metrics.** If nobody calls those four routes, sessions stay "running" forever. When someone does, the sweep updates **every workspace's** sessions, which is extra work on a busy installation.
+4. **A timed-out session can still collect cost, and come back.** Usage after a timeout is added and updates last seen, but the status stays `timed_out`, so it's not counted as active. A `PATCH` can set it back to `running`. Timed-out and errored sessions never count as completed, so they add cost to the ROI but no value.

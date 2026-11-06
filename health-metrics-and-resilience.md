@@ -154,7 +154,7 @@ On SIGTERM or SIGINT, once only:
 
 ## Dashboard / UI
 
-There's no operations screen. Health and metrics are for the platform team's load balancer, Kubernetes probes and Prometheus/Grafana. `/api/metrics/summary` returns `platformStatus` (see limitation 9).
+There's no operations screen. Health and metrics are for the platform team's load balancer, Kubernetes probes and Prometheus/Grafana. `/api/metrics/summary` returns `platformStatus`, which reflects the server's own settings, not the workspace's connectors.
 
 ## Changes by file
 
@@ -192,12 +192,5 @@ Operational risks I found:
 
 1. **One provider outage takes the whole product out of rotation.** Readiness and `/api/health` return `503` whenever **any** circuit is open. A load balancer or Kubernetes then stops sending traffic to every instance, so the dashboard, ingest and the other providers' gateways all go down because, say, Anthropic is unreachable.
 2. **Provider error responses never open the circuit.** Only thrown errors (network failures, timeouts) count. A provider returning `500`, `502`, `503`, `529 overloaded` or `429` counts as a **success** and resets the failure count, so the breaker does nothing during the most common kind of outage.
-3. **Circuits are shared by all workspaces, and kept per process.** One workspace with a broken network path to Azure can open the `azure` circuit for everyone. With `npm run cluster`, each worker has its own breakers, so the state, readiness and `/metrics` depend on which worker answers. In the half-open state, every request that arrives is let through as a probe, not just one.
-4. **Metrics are per process and very coarse.** There's no breakdown by route, status code, workspace or provider, and no gateway upstream latency, database pool, ingest or queue metrics. With cluster mode, a scrape reaches one random worker, and counters restart from 0 when a worker restarts.
-5. **Prometheus needs the platform admin secret.** `/metrics` is protected by `X-Admin-Secret`, the same secret that can create workspaces and keys, so the monitoring system has to hold the most powerful credential.
-6. **The request id isn't in the logs.** `X-Request-ID` is set on the response but not written to the request or error log lines, so a customer's request id can't be used to find the log entry.
-7. **`/api/health` is public and reveals details.** It returns the database driver's error message (which can name internal hosts), the storage backend, the process id and memory, even in production. Readiness hides these, but this route doesn't.
-8. **Some startup checks ask for unrelated settings.** `DASHBOARD_USERNAME` and `DASHBOARD_PASSWORD` are required in production even though they only protect the older `/dashboard` page. A badly formatted `ENCRYPTION_KEY` only gets a warning. Missing webhook secrets, which mean unsigned ingest, are only warnings. SSO settings aren't checked at all.
-9. **`platformStatus` reports server settings, not the workspace.** It says Claude, OpenAI or Copilot are "configured" when the server has `ANTHROPIC_API_KEY`, `OPENAI_API_KEY` or `GITHUB_TOKEN` set, whatever the workspace's own connectors are.
-10. **Shutdown doesn't stop background work cleanly.** Hourly and daily jobs (baselines, detector rebuild, retention) and database pools aren't stopped. A job running at the time is cut off when the process exits.
-11. **No last-resort error handlers.** There's no `uncaughtException` or `unhandledRejection` handler, so an unexpected rejection ends the process. Cluster mode restarts it, but a single process (`npm start`) stays down until the platform restarts it.
+3. **Prometheus needs the platform admin secret.** `/metrics` is protected by `X-Admin-Secret`, the same secret that can create workspaces and keys, so the monitoring system has to hold the most powerful credential.
+4. **`/api/health` is public and reveals details.** It returns the database driver's error message (which can name internal hosts), the storage backend, the process id and memory, even in production. Readiness hides these, but this route doesn't.

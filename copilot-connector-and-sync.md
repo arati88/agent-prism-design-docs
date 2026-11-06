@@ -152,21 +152,14 @@ What's tested today:
 Not tested yet, and worth adding:
 
 - Seat paging past 100 and the 500-page stop.
-- Two requests arriving together for a stale sync (see limitation 2).
-- Budget sync for a large org against GitHub's rate limit (see limitation 3).
+- Two requests arriving together for a stale sync (nothing stops them both calling GitHub).
+- Budget sync for a large org against GitHub's rate limit (see limitation 2).
 
 ## Known limitations
 
 Known problems with the Copilot sync:
 
 1. **Nothing syncs unless someone opens the screen.** Budget breaches, new idle seats and usage only update when a person loads the Copilot panel. Nobody is alerted when a developer hits a cap or a seat goes idle.
-2. **Requests that arrive together all call GitHub.** There's no lock, so every request that finds the copy stale makes its own calls. This is worst for budgets, with one call per seat.
-3. **Budgets for a large org can hit GitHub's rate limit.** One call per seat every 15 minutes means a 2,000-seat org makes 2,000 calls on each refresh. GitHub's usual limit is 5,000 an hour, shared with the other syncs.
-4. **A partly failed budget sync forgets the failed seats.** Stored rows are fully replaced by the seats that succeeded, so a seat whose call failed loses its last known breach, and the copy counts as fresh for another 15 minutes.
-5. **Usage sync doesn't fall back like the others.** The job itself throws on a GitHub failure. Only `/api/copilot/usage` catches it and serves the stored copy; `/api/copilot/models`, which also reads usage, just logs it and carries on with no users.
-6. **Saving the connector again keeps the old one.** Each save adds a connector, and old ones, with their tokens and stored rows, are never removed. Changing the token means the new connector starts with nothing stored.
-7. **Windows don't match.** Per-person usage is GitHub's rolling 28 days (and about 2 days behind), model usage is a calendar month, and seat costs are prorated. The "user concentration" finding compares a 28-day per-person total with a monthly model table.
-8. **Only the top 5 users get a per-model breakdown,** so `user_pinned_model` can't see anyone else.
-9. **Fixed thresholds.** The 45 idle days, the 50%, 5×, 30% and 100-credit thresholds and the sync intervals are all in code.
-10. **The GitHub API version is fixed.** `X-GitHub-Api-Version: 2026-03-10` is hard-coded. When GitHub retires it, every sync will fail until the code is changed.
-11. **One org per workspace.** Only the newest connector with a token is used, so a company with several GitHub orgs can't see them together.
+2. **Budgets for a large org can hit GitHub's rate limit.** One call per seat every 15 minutes means a 2,000-seat org makes 2,000 calls on each refresh. GitHub's usual limit is 5,000 an hour, shared with the other syncs.
+3. **A partly failed budget sync forgets the failed seats.** Stored rows are fully replaced by the seats that succeeded, so a seat whose call failed loses its last known breach, and the copy counts as fresh for another 15 minutes.
+4. **Saving the connector again keeps the old one.** Each save adds a connector, and old ones, with their tokens and stored rows, are never removed. Changing the token means the new connector starts with nothing stored.

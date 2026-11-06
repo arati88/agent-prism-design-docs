@@ -100,8 +100,3 @@ Why the recommendation can be misleading:
 1. **"Days" means days with usage, not days in the range.** Licence cost is prorated by `daily.length`. A 30-day range where usage happened on 10 days is charged as 10 days of licence, so the multiple looks three times better than it is. "All Time" is prorated over however many days happen to have data.
 2. **The suggestion ignores how many people use the tool.** It solves the ratio for seats without looking at active developers. Ten active developers can get "cut to 3 seats". The seat count is never compared with real seat assignments, such as Copilot seats or SCIM users.
 3. **"Over capacity" isn't really about capacity.** A high multiple means each seat produces a lot of list-price value, which suggests the subscription is good value. The banner says to **add** seats, which only lowers the ratio back to target. The recommendation steers towards a target ratio, not towards what the team needs.
-4. **The value side is a list-price estimate,** priced at Claude rates for every tool (see [consumption history](consumption-history-and-burn-rate.md)). Comparing it with a real subscription price mixes an estimate with an invoice.
-5. **One plan per workspace.** A workspace with several tools or plans (for example Claude Team and Copilot Business) can only enter one seat count and price.
-6. **Fixed 20% band.** The ±20% tolerance is in code, and the target and band are judgment calls, not derived from data.
-7. **Changes aren't audited, and anyone can read them.** Saving plan config writes no audit entry, and every workspace user can read it.
-8. **Silent defaults.** If the plan config can't be loaded, the panel quietly uses Pro / 1 seat / $20, which produces a confident-looking but meaningless multiple.

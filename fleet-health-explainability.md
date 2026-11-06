@@ -111,7 +111,4 @@ Problems with the health score as it is:
 
 1. **The score and the explanation can contradict each other.** The heaviest deduction (18 points per session) is for auto-compaction, which the explanation calls "normal behaviour, not a problem". Three long sessions take the score to 46, "Action required", while the text says "Nothing urgent below". The plan kept the old weights on purpose, but that's what produces the mixed message.
 2. **Old sessions still count.** Context buckets cover every session in the snapshot (the last 48 hours), not only active ones, so a session that finished yesterday at 95% still costs 18 points.
-3. **Fixed thresholds and weights** (90/70%, 18/8/5/15, 80/55) are in the browser code. They don't depend on the model's context size, and a workspace can't change them.
-4. **Offline machines can cost at most 15 points**, however many there are. Half the fleet going dark, which is a real loss of visibility, weighs less than one auto-compacting session.
-5. **Nothing is tested.** The logic is in the 6,500-line SPA file, with only manual checks recorded.
-6. **The score has no history.** It's worked out fresh on each view, so nobody can see whether the fleet is getting healthier or worse.
+3. **Offline machines can cost at most 15 points**, however many there are. Half the fleet going dark, which is a real loss of visibility, weighs less than one auto-compacting session.

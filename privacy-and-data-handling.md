@@ -119,8 +119,5 @@ Other privacy gaps:
 
 1. **Free-text run fields are a gap.** `notes`, `tags` and `breadcrumbs` are stored unscrubbed, appear in the activity feed, and are sent to the AI provider by the Prompt Advisor. Agents often put prompt excerpts or customer details there.
 2. **Pattern scrubbing is best effort.** It can't recognise names, addresses or free-text identifiers. It also has false positives: for example, `[A-Z]{2}\d{2}…` (IBAN) and 10-digit rules can replace ordinary codes and numbers.
-3. **One AI provider for all workspaces.** On a shared installation, every workspace's advisor data goes to the operator's provider, and a workspace can't opt out apart from its plan (see [AI providers](ai-providers.md)).
-4. **The demo sign-in exposes the oldest workspace.** When the demo login is set, its password is public and the sign-in screen uses it automatically (see [auth](auth-sso-and-scim.md)).
-5. **Erasure is for the whole workspace, not one person.** There's no way to find or erase one data subject's data across runs, fleet data, usage and the audit log.
-6. **Operators can switch collection on without anyone knowing.** The opt-in switches are environment settings. Changing them isn't audited and isn't shown to workspace admins.
-7. **The privacy statement is tied to one commit** ("As of 6 October 2026 · commit `de4b19b`"), and nothing checks it against later changes, apart from what the test covers.
+3. **The demo sign-in exposes the oldest workspace.** When the demo login is set, its password is public and the sign-in screen uses it automatically (see [auth](auth-sso-and-scim.md)).
+4. **Erasure is for the whole workspace, not one person.** There's no way to find or erase one data subject's data across runs, fleet data, usage and the audit log.

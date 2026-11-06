@@ -126,7 +126,7 @@ Not tested yet, and worth adding:
 - The three routes, including the owner-only check and `409`/`401`.
 - The gateway returning `423` while sealed, and working again after unseal.
 - The TTL expiry and sealing.
-- Changing the key while unsealed, and calling the set route while **sealed** (see limitation 4).
+- Changing the key while unsealed, and calling the set route while **sealed** (today that throws an unhandled error and returns `500`).
 - The Postgres migration of old connector secrets to the DEK.
 
 ## Known limitations
@@ -136,11 +136,4 @@ BYOK problems, roughly in order of impact:
 1. **BYOK workspaces seal themselves every 30 minutes.** The unsealed DEK expires after `TENANT_KEY_UNSEAL_TTL_MS`, even while agents are using it. The gateway then returns `423` until an owner unseals it again by hand, and nothing re-unseals automatically. For a busy customer this means regular outages.
 2. **Unsealing works for one server process only.** The cache is in memory. With `npm run cluster` or several instances, the unseal request reaches one worker, and the others stay sealed. Every restart or deploy seals the workspace.
 3. **BYOK only protects connector secrets.** Runs, prompt captures, audit logs, users, connector URLs and Copilot org names aren't encrypted by Agent Prism at all. "Customer-managed encryption" can easily be read as covering the customer's data, and it doesn't.
-4. **Changing the key needs the workspace unsealed, and a failure isn't handled.** Calling `POST /api/tenant/encryption-key` while sealed throws the `sealed` error inside the route, which isn't caught, so the caller gets a `500` instead of a clear message.
-5. **No way back, and the DEK is never replaced.** A workspace can't go back to platform-managed. Changing the key only re-wraps the **same** DEK, so anyone holding an old wrapped DEK and the old customer key can still decrypt. There's no rotation of the master `ENCRYPTION_KEY` either: changing it makes every platform-managed workspace's secrets unreadable.
-6. **A lost customer key means lost connector secrets.** There's no recovery. The connectors have to be re-entered after resetting the workspace's encryption, and there's no route to do that reset.
-7. **Admins can't use these routes, although the messages say they can.** The routes need `data.erase` (owner) and then also check for owner **or admin**. Admins always fail the first check.
-8. **No screen and no status.** BYOK is API-only, nothing shows whether a workspace is sealed, and there's no warning before the 30 minutes run out.
-9. **A weak passphrase is allowed.** Any secret of 16 or more characters is accepted; a 64-character hex key is only *recommended*. Unseal attempts aren't rate-limited beyond the general limits, although they need a signed-in owner.
-10. **Key derivation blocks the server briefly.** PBKDF2 with 210,000 rounds runs synchronously on each set and unseal, pausing other requests for that moment.
-11. **Development installs store DEKs unprotected.** Without `ENCRYPTION_KEY` (allowed outside production), the "wrapped" DEK is stored as plain base64, so the encryption is only nominal. Startup warns about this.
+4. **A lost customer key means lost connector secrets.** There's no recovery. The connectors have to be re-entered after resetting the workspace's encryption, and there's no route to do that reset.

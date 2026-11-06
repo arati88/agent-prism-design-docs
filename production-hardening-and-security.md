@@ -158,10 +158,5 @@ Not tested yet, and worth adding:
 Hardening gaps that are still open:
 
 1. **Rate limits are kept in each process's memory.** With cluster mode or several replicas, each limit is multiplied by the number of processes, and counts start again on restart. That's noted in the code but not fixed.
-2. **Fixed windows allow bursts.** A caller can send a full limit at the end of one minute and another at the start of the next: twice the limit within a few seconds.
-3. **Validation covers only some routes.** `SCHEMAS` exists for sessions, usage, login, bootstrap, connectors, ingest, team assignments, plan config, promotions and a few others. Many routes check their input by hand or not at all, and nothing makes sure every route is covered.
-4. **One body limit for everything.** 1 MB applies to every route, including gateway calls whose prompts can legitimately be larger, and batch ingest.
-5. **Inline styles are allowed** (`style-src 'unsafe-inline'`), so injected markup can still be styled to look real (see the Prompt Advisor escaping issue in [AI Advisor](ai-advisor-and-prompt-advisor.md)).
-6. **Basic Auth on `/dashboard` is one shared username and password** for the whole installation, compared outside the normal user and role system. (`/setup` has no Basic Auth; it serves the main SPA page.)
-7. **CORS doesn't allow the session header or `PUT`.** `X-Session-Token` and the provider headers (`anthropic-version`) aren't in the allowed headers, so cross-origin use only works with API keys. `PUT` isn't in the allowed methods, so routes such as the key IP allowlist and SCIM `PUT /scim/v2/Users/{id}` can't be called from another origin in a browser.
-8. **Storyline and other demo pages are still served.** `storyline.html`, `leadership.html` and `admin.html` are reachable by URL in production, without sign-in.
+2. **Validation covers only some routes.** `SCHEMAS` exists for sessions, usage, login, bootstrap, connectors, ingest, team assignments, plan config, promotions and a few others. Many routes check their input by hand or not at all, and nothing makes sure every route is covered.
+3. **Storyline and other demo pages are still served.** `storyline.html`, `leadership.html` and `admin.html` are reachable by URL in production, without sign-in.
