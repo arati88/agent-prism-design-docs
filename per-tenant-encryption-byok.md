@@ -16,7 +16,7 @@ Agent Prism never stores a BYOK workspace's secret. After a restart, or after 30
 
 Example: Acme's owner sends `POST /api/tenant/encryption-key` with a 64-character hex key from `openssl rand -hex 32`. The workspace's DEK is re-wrapped with that key and the workspace becomes customer-managed. It stays unsealed for 30 minutes. The next morning, after a redeploy, Acme's agents get `423 tenant_encryption_sealed` from `/v1/messages` until the owner sends `POST /api/tenant/encryption-key/unseal` with the same key.
 
-This document describes encryption **today**. It's written from the code, not as a plan for new work.
+This is how encryption works in the current code.
 
 ## What we have today
 
@@ -104,7 +104,7 @@ There's no screen for this. BYOK is set up and unsealed through the API only, an
 
 ## Changes by file
 
-These are the files the feature lives in today. Nothing changes in this document.
+Encryption code, by file:
 
 | File | What it does for encryption |
 | --- | --- |
@@ -131,7 +131,7 @@ Not tested yet, and worth adding:
 
 ## Known limitations
 
-Found while reading the code. These are listed as they are; fixing them would be separate work.
+BYOK problems, roughly in order of impact:
 
 1. **BYOK workspaces seal themselves every 30 minutes.** The unsealed DEK expires after `TENANT_KEY_UNSEAL_TTL_MS`, even while agents are using it. The gateway then returns `423` until an owner unseals it again by hand, and nothing re-unseals automatically. For a busy customer this means regular outages.
 2. **Unsealing works for one server process only.** The cache is in memory. With `npm run cluster` or several instances, the unseal request reaches one worker, and the others stay sealed. Every restart or deploy seals the workspace.

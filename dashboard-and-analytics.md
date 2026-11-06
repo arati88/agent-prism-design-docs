@@ -25,7 +25,7 @@ control score = 84.45 → 84 → "Stable"
 
 It also cost more than its budget, so it shows on the Cost Leak Radar as a **Budget breach**.
 
-This document describes how the dashboard works **today**. It's written from the code, not as a plan for new work. The machine-learning models it can use (logistic regression and isolation forest) have their own document. ROI and the savings report are covered separately.
+This is how the dashboard works in the code right now. The machine-learning models it can use (logistic regression and isolation forest) have their own document. ROI and the savings report are covered separately.
 
 ## What we have today
 
@@ -228,7 +228,7 @@ The dashboard is built once and reused for **5 seconds** for each workspace, and
 
 ## Changes by file
 
-These are the files the feature lives in today. Nothing changes in this document.
+Files behind the dashboard:
 
 | File | What it does for the dashboard |
 | --- | --- |
@@ -259,7 +259,7 @@ Not tested yet, and worth adding:
 
 ## Known limitations
 
-Found while reading the code. These are listed as they are; fixing them would be separate work.
+Places where the dashboard numbers can be off:
 
 1. **"Projected monthly cost" is always total cost × 30.** It treats every run in the sample as one day's runs (`runsPerDay = number of runs`), so a sample covering 3 months is still multiplied by 30. Every Token Coach monthly saving is scaled the same way, so they're all inflated too.
 2. **The 30-day forecast counts runs, not days.** It takes the trend line 30 **runs** ahead and multiplies by 30. It has nothing to do with dates.

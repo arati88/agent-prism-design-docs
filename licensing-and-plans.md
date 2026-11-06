@@ -18,7 +18,7 @@ The operator and product-owner guide is [docs/LICENSING.md](../LICENSING.md), wh
 
 Example: Contoso gets a single-workspace **Pro** licence with **50 seats**, expiring 2027-10-31. Every workspace on Contoso's installation gets Pro: 100 agents, 50,000 runs a month, the gateway, the AI Advisor and 365-day retention. Seats are capped at 50 across the installation. From 2027-10-01 admins see a renewal banner. Between 2027-10-31 and 2027-11-14 everything still works. After that, Free limits apply: 5 agents, 500 runs and no gateway, until a new licence is installed.
 
-This document describes licensing and plans **today**. It's written from the code, not as a plan for new work.
+This reflects how licensing and plans work in the current code.
 
 ## What we have today
 
@@ -127,7 +127,7 @@ Each `402` includes an **upgrade prompt** with the next plan and `UPGRADE_URL` (
 
 ## Changes by file
 
-These are the files the feature lives in today. Nothing changes in this document.
+Licensing and plan code:
 
 | File | What it does |
 | --- | --- |
@@ -153,7 +153,7 @@ Not tested yet, and worth adding:
 
 ## Known limitations
 
-Found while reading the code. These are listed as they are; fixing them would be separate work.
+Licensing gaps worth discussing:
 
 1. **An expired licence stops customers' agents, not just features.** After grace, the gateway isn't in the Free plan, so every agent routed through `/v1/*` gets `402` and stops working. Ingest also stops at 500 runs a month. No data is deleted, but "never destructive" doesn't describe what customers' production agents experience.
 2. **A licence can't be withdrawn and isn't tied to an installation.** It's valid until it expires, wherever it's installed. A leaked or shared licence works on any number of servers, and there's no revocation list. Expiry depends on the server's own clock.

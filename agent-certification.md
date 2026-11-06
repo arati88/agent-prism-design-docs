@@ -14,7 +14,7 @@ Going to production takes **two people**. One person requests the promotion, and
 
 Example: the agent `invoice-bot` reports the tools `search_invoices` (level 0), `create_record` (level 1) and `send_email` (level 2). Its tier is 2, its highest level. A tier 2 agent needs 20 successful staging runs, a danger score of 50 or less, a human approval on every run that used a level 2 tool, and no policy violations. When it passes, Alice requests promotion and Bob, an admin, approves it. From then on, `invoice-bot` production runs are accepted for 30 days.
 
-This document describes how certification works **today**. It's written from the code, not as a plan for new work.
+What follows is the certification flow as it's coded today, not a proposal.
 
 ## What we have today
 
@@ -194,7 +194,7 @@ The **Pending Promotions** queue lists open requests. Owners and admins see **Ap
 
 ## Changes by file
 
-These are the files the feature lives in today. Nothing changes in this document.
+Where the certification code lives:
 
 | File | What it does for certification |
 | --- | --- |
@@ -223,7 +223,7 @@ Not tested yet, and worth adding:
 
 ## Known limitations
 
-Found while reading the code. These are listed as they are; fixing them would be separate work.
+Gaps I found while going through the certification code:
 
 1. **The gate only covers the four `/api/ingest*` routes.** Live gateway calls (`/v1/messages`, `/v1/responses`, `/v1/chat/completions`, `/v1/azure/*`) and `/api/fleet/ingest` are never blocked. The dashboard's step 3 says that routing calls through the gateway with `ANTHROPIC_BASE_URL` "enforces automatically", but it doesn't.
 2. **The two-person rule can be skipped.** `POST /api/agents/:name/certify` with `environment: "production"` saves a certified production certificate straight away, with no pending promotion and no second reviewer. Anyone with `agents.govern` can do this, alone. That includes a full API key created by an admin, and older keys with no role, which act as owner (see [multi-tenancy](multi-tenancy-and-api-keys.md)).

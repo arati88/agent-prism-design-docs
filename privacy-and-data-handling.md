@@ -12,7 +12,7 @@ The customer-facing statement is [docs/PRIVACY.md](../PRIVACY.md): what's stored
 
 Example: an agent sends `POST /api/ingest` with `prompt: "Email jane@acme.com about invoice 4411"` and `notes: "ran ok"`. The prompt isn't stored; only metrics are. If the save fails and the run goes to the retry queue, `prompt` and `messages` are removed and the rest is scrubbed first. With `LLM_CLASSIFIER_ENABLED=true`, up to 800 characters are sent to the organisation's AI provider as `Email [EMAIL] about invoice 4411` to label the task. `notes` is stored as sent.
 
-This document describes privacy controls **today**. It's written from the code, not as a plan for new work.
+It describes the controls as they exist in the code today.
 
 ## What we have today
 
@@ -77,7 +77,7 @@ There's no privacy screen. Prompt capture and the other switches are environment
 
 ## Changes by file
 
-These are the files the feature lives in today. Nothing changes in this document.
+Privacy-related code:
 
 | File | What it does for privacy |
 | --- | --- |
@@ -115,7 +115,7 @@ These need to be fixed in the code or in the statement before PRIVACY.md is show
 
 ## Known limitations
 
-Found while reading the code. These are listed as they are; fixing them would be separate work.
+Other privacy gaps:
 
 1. **Free-text run fields are a gap.** `notes`, `tags` and `breadcrumbs` are stored unscrubbed, appear in the activity feed, and are sent to the AI provider by the Prompt Advisor. Agents often put prompt excerpts or customer details there.
 2. **Pattern scrubbing is best effort.** It can't recognise names, addresses or free-text identifiers. It also has false positives: for example, `[A-Z]{2}\d{2}…` (IBAN) and 10-digit rules can replace ordinary codes and numbers.

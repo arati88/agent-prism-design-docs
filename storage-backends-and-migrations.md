@@ -13,7 +13,7 @@ The Postgres tables are created and changed by **numbered migration files** in `
 
 Example: a developer runs `npm start` with no settings and gets a working app with data in `data/app-state.json`. The hosted service sets `STORAGE_BACKEND=postgres`, `DATABASE_URL=postgres://…` and `RUN_MIGRATIONS_ON_STARTUP=true`. On boot it applies any new migrations, then serves traffic, and `/api/health/ready` only says "ready" once the database is prepared.
 
-This document describes how storage works **today**. It's written from the code, not as a plan for new work.
+This is how storage works in the current code.
 
 ## What we have today
 
@@ -191,7 +191,7 @@ There's no storage screen. Retention appears as the plan's "data retention" limi
 
 ## Changes by file
 
-These are the files the feature lives in today. Nothing changes in this document.
+Storage code, by file:
 
 | File | What it does for storage |
 | --- | --- |
@@ -225,7 +225,7 @@ Not tested yet, and worth adding:
 
 ## Known limitations
 
-Found while reading the code. These are listed as they are; fixing them would be separate work.
+Storage weaknesses:
 
 1. **Two implementations of everything.** Every store function is written twice, once per backend: about 2,100 lines for file and 3,300 for Postgres. They can drift apart, and some functions exist on only one, where the entry point quietly returns an empty default. For example, ML model loading at start-up only happens on Postgres.
 2. **`db/schema.sql` is out of date.** It defines 9 tables, against 32 in a current database, yet `CLAUDE.md` and `DEVELOPER.md` point to it as the schema, and `DEVELOPER.md` suggests running it by hand. Running it alone would give a database missing most tables. The migrations are the real source.

@@ -23,7 +23,7 @@ This document replaces the openspec change `openspec/changes/production-hardenin
 
 Example: a client sends `POST /api/sessions` with `Content-Type: text/plain` and gets `415`. It resends as JSON without `platform` and gets `422 { fields: [{ field: "platform", message: … }] }`. A browser on `https://evil.example` sends a preflight and gets `403 CORS origin not allowed`. `GET /..%2f..%2fetc/passwd` gets `403`. Every one of these responses carries `X-Content-Type-Options: nosniff` and the CSP.
 
-This document describes hardening **today**. It's written from the code, not as a plan for new work.
+This describes the hardening that's in the code today.
 
 ## What we have today
 
@@ -131,7 +131,7 @@ None. The dashboard runs under the CSP above.
 
 ## Changes by file
 
-These are the files the feature lives in today. Nothing changes in this document.
+Hardening code, by file:
 
 | File | What it does |
 | --- | --- |
@@ -155,7 +155,7 @@ Not tested yet, and worth adding:
 
 ## Known limitations
 
-Found while reading the code. These are listed as they are; fixing them would be separate work.
+Hardening gaps that are still open:
 
 1. **Rate limits are kept in each process's memory.** With cluster mode or several replicas, each limit is multiplied by the number of processes, and counts start again on restart. That's noted in the code but not fixed.
 2. **Fixed windows allow bursts.** A caller can send a full limit at the end of one minute and another at the start of the next: twice the limit within a few seconds.

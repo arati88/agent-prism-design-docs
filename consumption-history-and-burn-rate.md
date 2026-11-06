@@ -13,7 +13,7 @@ This document replaces two openspec items in our format: the change `openspec/ch
 
 Example: a developer's Claude Code session started at 09:00. By 10:30 it has used tokens worth $4.20 at list price, so its burn rate is $4.20 ÷ 1.5 h = $2.80/hr. Hovering shows "$4.20 in 1h 30m — burning $2.80/hr, on pace for $7.00 if this continues another hour (API-list-price estimate — not billed cost on a subscription plan)". In Spend History, a manager picks **3 March – 17 March**, and the view calls `/api/usage/daily?from=2026-03-03&to=2026-03-17`.
 
-This document describes the views **today**. It's written from the code, not as a plan for new work.
+Both views are described as they currently behave.
 
 ## What we have today
 
@@ -98,7 +98,7 @@ If there are no start and end times (an older collector), burn rate is `null` in
 
 ## Changes by file
 
-These are the files the feature lives in today. Nothing changes in this document.
+Code for both views:
 
 | File | What it does |
 | --- | --- |
@@ -119,7 +119,7 @@ None automated for the range controls, burn rate or notes. The openspec tasks re
 
 ## Known limitations
 
-Found while reading the code. These are listed as they are; fixing them would be separate work.
+Things that can mislead people reading these views:
 
 1. **Burn rate is a lifetime average, not recent pace.** It divides **all** the session's cost by the time from its first to its last activity. A session resumed after a long pause shows a very low rate, and a short burst shows a very high one. The original plan described it as "a rate estimate based on recent activity", which isn't what the formula does. The "on pace for…" projection assumes the same rate for another full hour.
 2. **Every session is priced at Claude rates.** Fleet rollups and burn rate use `computeClaudeCost` whatever the tool, so Codex or other non-Claude sessions get Claude prices, or the default Sonnet price for unknown models.

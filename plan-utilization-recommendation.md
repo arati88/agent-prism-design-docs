@@ -16,7 +16,7 @@ This document replaces the openspec change `openspec/changes/archive/2026-08-24-
 
 Example: 10 seats at $30 a month, a 30-day range, $450 of consumption value. Allocated cost is $300, the multiple is **1.5×** ("Low"), and the target is 3×. 1.5 is below 2.4 (80% of target), so the panel says "underused". The suggested seats are round(450 ÷ (3 × 30 × 1)) = **5**, shown as "Consider cutting to 5 seats to hit target".
 
-This document describes the panel **today**. It's written from the code, not as a plan for new work.
+This is the panel as it's coded today.
 
 ## What we have today
 
@@ -77,7 +77,7 @@ Below the multiple: "This is a utilization/economic efficiency indicator and sho
 
 ## Changes by file
 
-These are the files the feature lives in today. Nothing changes in this document.
+Where the panel is implemented:
 
 | File | What it does |
 | --- | --- |
@@ -95,7 +95,7 @@ Nothing automated. `planRecommendation` is a pure function inside `public/app.js
 
 ## Known limitations
 
-Found while reading the code. These are listed as they are; fixing them would be separate work.
+Why the recommendation can be misleading:
 
 1. **"Days" means days with usage, not days in the range.** Licence cost is prorated by `daily.length`. A 30-day range where usage happened on 10 days is charged as 10 days of licence, so the multiple looks three times better than it is. "All Time" is prorated over however many days happen to have data.
 2. **The suggestion ignores how many people use the tool.** It solves the ratio for seats without looking at active developers. Ten active developers can get "cut to 3 seats". The seat count is never compared with real seat assignments, such as Copilot seats or SCIM users.

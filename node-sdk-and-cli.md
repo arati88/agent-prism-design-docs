@@ -24,7 +24,7 @@ await prism.logRun({
 
 The first call gets an access token, and later calls within the hour reuse it. The run then goes through normal passive ingest: it's normalised, tool danger is classified, the plan and certification checks run, and it's saved (see [passive ingest](passive-ingest.md)).
 
-This document describes the SDK and CLI **today**. It's written from the code, not as a plan for new work.
+Both are described as they are in the repo today.
 
 ## What we have today
 
@@ -98,7 +98,7 @@ None. The developer copies an API key from **Admin → API keys** and pastes it 
 
 ## Changes by file
 
-These are the files the feature lives in today. Nothing changes in this document.
+The SDK and CLI code:
 
 | File | What it does |
 | --- | --- |
@@ -120,7 +120,7 @@ Worth adding:
 
 ## Known limitations
 
-Found while reading the code. These are listed as they are; fixing them would be separate work.
+Problems a new SDK user is likely to hit:
 
 1. **The first `logRun` fails unless the run says `environment`.** Ingest treats a run without `environment` as **production**, and an agent without a production certificate is refused with `403 agent_not_certified` (see [agent certification](agent-certification.md)). A new user following the simple example gets an error until they add `environment: "staging"` or certify the agent. The SDK doesn't mention this.
 2. **The CLI sends telemetry to the hosted demo by default.** Without `AGENT_PRISM_URL`, `login` saves `https://agent-prism.onrender.com` as the endpoint and tells the user to get their key from that site. A customer running their own installation who doesn't set the variable sends runs, or fails to authenticate, against the demo server. The SDK's own default is `http://127.0.0.1:3000`, which is different.

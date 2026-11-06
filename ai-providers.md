@@ -20,7 +20,7 @@ The user guide is [docs/AI-PROVIDERS.md](../AI-PROVIDERS.md). This document is t
 
 Example: a bank runs Agent Prism on AWS. It sets `AI_PROVIDER=aws-bedrock`, `AWS_REGION=eu-west-1`, `AI_MODEL=<inference-profile ARN>` and `AWS_BEDROCK_ENDPOINT=<PrivateLink URL>`, and gives the task role `bedrock:Converse`. There's no key to store. Admin → AI service shows "Amazon Bedrock · platform identity (no static key)", and **Test connection** answers "OK" in 640 ms.
 
-This document describes the switch **today**. It's written from the code, not as a plan for new work.
+Everything here reflects the current code.
 
 ## What we have today
 
@@ -114,7 +114,7 @@ The AI Advisor and Prompt Advisor routes are in [AI Advisor and Prompt Advisor](
 
 ## Changes by file
 
-These are the files the feature lives in today. Nothing changes in this document.
+Where to find it:
 
 | File | What it does |
 | --- | --- |
@@ -139,7 +139,7 @@ Not tested yet, and worth adding:
 
 ## Known limitations
 
-Found while reading the code. These are listed as they are; fixing them would be separate work.
+Things to know about the provider switch:
 
 1. **One provider for the whole installation.** Every workspace's AI Advisor and Prompt Advisor data goes to the same model service, chosen by the operator. On a shared installation a customer can't choose their own provider, keep their data out of the operator's provider, or turn AI off for themselves; only the plan decides.
 2. **The user guide doesn't match the code on what's sent:**

@@ -14,7 +14,7 @@ This document covers how Agent Prism is **run and watched** in production:
 
 Example: Anthropic's API stops answering. Five gateway calls in a row time out, so the `anthropic` circuit **opens**. An alert goes to `CB_ALERT_WEBHOOK_URL`, and for the next 30 seconds `/v1/messages` fails straight away with "temporarily unavailable". `/api/health/ready` now returns `503`. After 30 seconds the next call is let through as a probe, and after 2 successful probes the circuit **closes** with another alert.
 
-This document describes how operations work **today**. It's written from the code, not as a plan for new work.
+It describes how these work in the code right now.
 
 ## What we have today
 
@@ -158,7 +158,7 @@ There's no operations screen. Health and metrics are for the platform team's loa
 
 ## Changes by file
 
-These are the files the feature lives in today. Nothing changes in this document.
+Where the operations code lives:
 
 | File | What it does for operations |
 | --- | --- |
@@ -188,7 +188,7 @@ Not tested yet, and worth adding:
 
 ## Known limitations
 
-Found while reading the code. These are listed as they are; fixing them would be separate work.
+Operational risks I found:
 
 1. **One provider outage takes the whole product out of rotation.** Readiness and `/api/health` return `503` whenever **any** circuit is open. A load balancer or Kubernetes then stops sending traffic to every instance, so the dashboard, ingest and the other providers' gateways all go down because, say, Anthropic is unreachable.
 2. **Provider error responses never open the circuit.** Only thrown errors (network failures, timeouts) count. A provider returning `500`, `502`, `503`, `529 overloaded` or `429` counts as a **success** and resets the failure count, so the breaker does nothing during the most common kind of outage.

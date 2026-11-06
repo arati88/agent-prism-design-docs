@@ -12,7 +12,7 @@ The two advisors use **the organisation's own LLM**, set with `AI_PROVIDER` (Azu
 
 Example: the Prompt Advisor scores "Summarise this" at 3/10. The weakness is that it gives no audience, length or format. The rewrite is "Summarise the attached incident report for an engineering manager in 5 bullet points, under 120 words", with a 25% token saving. The run had 8,000 input tokens and cost $0.04, and its workflow is `customer-ops`, which the dashboard assumes runs 150,000 times a month. So the card shows 2,000 tokens saved a run, $0.04 → $0.03 a run, **$1,500 a month** and $18,000 a year.
 
-This document describes how the advisors work **today**. It's written from the code, not as a plan for new work.
+Both advisors are described as they're coded right now.
 
 ## What we have today
 
@@ -148,7 +148,7 @@ The keyword rules for task type are checked in this order: code, reasoning, summ
 
 ## Changes by file
 
-These are the files the feature lives in today. Nothing changes in this document.
+The advisor code is in these files:
 
 | File | What it does for the advisors |
 | --- | --- |
@@ -176,7 +176,7 @@ Not tested yet, and worth adding:
 
 ## Known limitations
 
-Found while reading the code. These are listed as they are; fixing them would be separate work.
+Issues I found, starting with the one that matters most:
 
 1. **Security: the Prompt Advisor shows prompt text without escaping it.** Each card puts the first 120 characters of the prompt straight into the page (`public/app.js`, the card header), with no `escapeHtml`. Prompts come from run breadcrumbs, notes and gateway captures, so a run whose text contains HTML is shown as live HTML to anyone who opens the Prompt Advisor. The dashboard's Content-Security-Policy (`script-src 'self'`, no inline scripts) stops injected **script** from running, but injected markup (fake text, links, images from `data:`) still appears in the page. The `score` from the LLM's answer is also put into the card without escaping. The server doesn't check that it's a number, and a prompt can tell the advisor what to answer (limitation 2), so this is a second way in. The agent name, model, weakness and rewrite **are** escaped.
 2. **The Prompt Advisor sends prompt text to the LLM without removing personal data.** The task classifier scrubs emails, card numbers, phone numbers and so on before sending text out (`scrubPiiDeep`), but `/api/advisor` sends the prompt as it is. The prompt is also pasted into the instructions with no `<agent_content>`-style wrapper, so a prompt can tell the advisor what score to give.

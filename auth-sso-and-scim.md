@@ -15,7 +15,7 @@ How a request is matched to a workspace, API keys, roles and permissions is in [
 
 Example: Acme connects Okta. A new engineer signs in through Okta for the first time. Okta says the address is verified, and the engineer is in the `ap-admins` group, which is mapped with `OIDC_ADMIN_GROUPS`. Agent Prism creates the account in Acme's workspace, checks there's a free seat, gives the account the **admin** role and starts a session. Months later Okta's SCIM sends `active: false`, and the engineer's sessions stop working on the next request.
 
-This document describes sign-in and accounts **today**. It's written from the code, not as a plan for new work.
+This covers sign-in and accounts as they work in the code today.
 
 ## What we have today
 
@@ -179,7 +179,7 @@ Every change is audited (`SCIM User Provisioned/Updated/Deactivated/Deleted`). A
 
 ## Changes by file
 
-These are the files the feature lives in today. Nothing changes in this document.
+Sign-in and account code lives in:
 
 | File | What it does for sign-in and accounts |
 | --- | --- |
@@ -209,7 +209,7 @@ Not tested yet, and worth adding:
 
 ## Known limitations
 
-Found while reading the code. These are listed as they are; fixing them would be separate work.
+Gaps in sign-in, SSO and SCIM:
 
 1. **`SSO_ONLY` only hides the password form.** The server still accepts `POST /api/auth/login`, so anyone with a password, including one set by invite or by the platform admin, can still sign in with it. A customer that requires SSO (and its MFA) doesn't really get it.
 2. **The demo login can expose and change a real workspace.** When `DEMO_EMAIL` and `DEMO_PASSWORD` are set, the password is public (`/api/login-config`) and the sign-in screen uses it automatically. The demo account is created in the **oldest active workspace**, which on a shared installation is a real customer's, and that workspace's plan is raised to enterprise-trial. If `DEMO_EMAIL` matches an existing person, their password is reset and their role lowered.

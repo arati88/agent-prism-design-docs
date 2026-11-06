@@ -28,7 +28,7 @@ This document replaces the openspec change `openspec/changes/fleet-health-explai
 
 Example: 1 of 4 machines is offline, and one session is at 93% context. Deductions: offline 4 (¼ × 15, rounded), auto-compacting 18, so the score is **78, "Needs attention"**. The explanation says "1 item for IT to fix". It lists **"1 developer machine not reporting"** first (ask them to restart `collector.js`), then "1 session auto-summarising history: normal behaviour, not a problem".
 
-This document describes the panel **today**. It's written from the code, not as a plan for new work.
+This is the panel as it works today.
 
 ## What we have today
 
@@ -85,7 +85,7 @@ The **Live Sessions → Fleet Overview** panel, in both single-machine and Fleet
 
 ## Changes by file
 
-These are the files the feature lives in today. Nothing changes in this document.
+Where it's implemented:
 
 | File | What it does |
 | --- | --- |
@@ -107,7 +107,7 @@ None automated. The openspec tasks record manual checks:
 
 ## Known limitations
 
-Found while reading the code. These are listed as they are; fixing them would be separate work.
+Problems with the health score as it is:
 
 1. **The score and the explanation can contradict each other.** The heaviest deduction (18 points per session) is for auto-compaction, which the explanation calls "normal behaviour, not a problem". Three long sessions take the score to 46, "Action required", while the text says "Nothing urgent below". The plan kept the old weights on purpose, but that's what produces the mixed message.
 2. **Old sessions still count.** Context buckets cover every session in the snapshot (the last 48 hours), not only active ones, so a session that finished yesterday at 95% still costs 18 points.

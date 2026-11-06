@@ -29,7 +29,7 @@ The parts are documented in more detail elsewhere: [sessions and timeout](sessio
 
 Example: a CI job opens session `ci-4412` (`claude`) and reports two usage events of 1,500 input and 400 output tokens (Sonnet rates, $0.0105 each). It then sets `completed`. `/dashboard` shows 0 active agents, $0.021 today, 2 FTE hours saved, $170 of FTE cost against $0.021 of agent cost, and an ROI of about 8,095×.
 
-This document describes the tracker **today**. It's written from the code, not as a plan for new work.
+This is how the tracker works in the current code.
 
 ## What we have today
 
@@ -87,7 +87,7 @@ The **`/dashboard`** page has four cards (Active agents, Agent cost, ROI with it
 
 ## Changes by file
 
-These are the files the feature lives in today. Nothing changes in this document.
+Files involved:
 
 | File | What it does |
 | --- | --- |
@@ -114,7 +114,7 @@ These are the files the feature lives in today. Nothing changes in this document
 
 ## Known limitations
 
-Found while reading the code. These are listed as they are; fixing them would be separate work.
+Problems with the tracker as it stands:
 
 1. **The `/dashboard` page doesn't work for normal users.** It ignores the dashboard sign-in and reads an API key from the browser's `localStorage` (`acp_api_key`). Sign-in no longer puts one there, and older ones were revoked. After the Basic Auth prompt the page asks for an API key in a browser pop-up, so a user has to create a key in Admin → API keys and paste it. That keeps a long-lived key in the browser's storage, and it isn't linked from the main dashboard.
 2. **Two sign-ins for one page.** The page is behind a shared Basic Auth username and password (the same for every workspace), and then needs a workspace API key as well. Production refuses to start without `DASHBOARD_USERNAME` / `DASHBOARD_PASSWORD`, although they only protect this one page.

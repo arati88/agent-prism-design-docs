@@ -10,7 +10,7 @@ So a team gets cost tracking, budgets and rate limits **without changing their a
 
 Example: an agent using the Anthropic SDK sets `ANTHROPIC_BASE_URL=https://<agent-prism>/` and uses an `acp_…` Agent Prism key instead of its Anthropic key. Every `messages.create()` call now appears on the dashboard with its cost, and stops with a clear error once the month's budget is used up.
 
-This document describes how the gateway works **today**. It's written from the code, not as a plan for new work.
+Everything below is how the gateway behaves in the code right now.
 
 ## What we have today
 
@@ -161,7 +161,7 @@ The gateway has no page of its own. Its runs appear everywhere other runs do: Ov
 
 ## Changes by file
 
-These are the files the feature lives in today. Nothing changes in this document.
+The gateway's code is spread across these files:
 
 | File | What it does for the gateway |
 | --- | --- |
@@ -196,7 +196,7 @@ Not tested yet, and worth adding:
 
 ## Known limitations
 
-Found while reading the code. These are listed as they are; fixing them would be separate work.
+Things I noticed in the code that don't work well, or might surprise people:
 
 1. **The four routes don't run the same checks.**
 

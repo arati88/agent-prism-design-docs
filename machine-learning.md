@@ -12,7 +12,7 @@ The **Run value** panel (Admin) turns the first two into money: how much spend h
 
 Example: over 30 days a workspace spent $400 on 900 runs. 120 of them (13%) scored below 0.5, adding up to $62 of spend without return. Most of that ($41, 66%) came from runs that went over budget, so the advice is to set a per-run budget and stop runs early. The detector also flags 4 runs. One reads "Input tokens 14× the usual", which is likely a runaway prompt.
 
-This document describes how the ML pieces work **today**. It's written from the code, not as a plan for new work.
+These are the ML pieces as they're coded today.
 
 ## What we have today
 
@@ -144,7 +144,7 @@ The LLM classifier is **off by default**. It needs `LLM_CLASSIFIER_ENABLED=true`
 
 ## Changes by file
 
-These are the files the feature lives in today. Nothing changes in this document.
+ML code is in:
 
 | File | What it does for ML |
 | --- | --- |
@@ -176,7 +176,7 @@ Not tested yet, and worth adding:
 
 ## Known limitations
 
-Found while reading the code. These are listed as they are; fixing them would be separate work.
+Things to be aware of with the models:
 
 1. **The detector flags most runs in small workspaces.** The score is always scaled by the figure for 256 runs, even when a tree was built from fewer. A quick simulation on ordinary runs with nothing unusual flagged about **97% at 30 runs, 40% at 60 and 15% at 100**, falling to under 1% only from 256 runs. Every flagged run also appears on the Cost Leak Radar as a "Statistical anomaly", so a new workspace's radar fills with false leaks. The "≈5% false-positive rate" in the code comment only holds for large workspaces.
 2. **Models live in each server's memory.** A label retrains the model only in the process that received it. With `npm run cluster`, other workers keep the old model until restart. On Postgres, saved weights are loaded only at start-up.

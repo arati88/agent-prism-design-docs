@@ -16,7 +16,7 @@ Sessions are **not** the same as the dashboard's **Live Sessions** view. That co
 
 Example: a script opens session `sess_42` for `claude`. It reports usage twice: 20,000 input and 2,000 output tokens on `claude-haiku-4-5` ($0.03), then the same again, for a session cost of **$0.06**. It then sets the status to `completed`. The session ROI counts it as 1 completed session = 2 hours × $85 = $170 of value against $0.06 of cost.
 
-This document describes sessions **today**. It's written from the code, not as a plan for new work.
+This is how sessions work in the current code.
 
 ## What we have today
 
@@ -110,7 +110,7 @@ The main dashboard doesn't show agent sessions. The older `/dashboard` page (`pu
 
 ## Changes by file
 
-These are the files the feature lives in today. Nothing changes in this document.
+Session code lives in:
 
 | File | What it does for sessions |
 | --- | --- |
@@ -138,7 +138,7 @@ Not tested yet, and worth adding:
 
 ## Known limitations
 
-Found while reading the code. These are listed as they are; fixing them would be separate work.
+Session issues I found:
 
 1. **OpenAI usage can't be reported.** The schemas only allow `claude`, `copilot` and `generic`, so `platform: "openai"` gets `400`, and the OpenAI pricing in `/api/usage` is never used. OpenAI users have to send `generic` with their own `cost_usd`.
 2. **Tokens without a platform cost $0.** `platform` is optional in `/api/usage` and defaults to `generic`, which only reads `cost_usd`. The session's own platform isn't used. Claude cache tokens are never priced here.

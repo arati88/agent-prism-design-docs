@@ -20,7 +20,7 @@ POST /api/ingest
 
 The run appears on the dashboard within seconds, counted in cost, scores, leaks and Run value like any other run.
 
-This document describes how passive ingest works **today**. It's written from the code, not as a plan for new work.
+Everything below is how passive ingest behaves in the current code.
 
 ## What we have today
 
@@ -198,7 +198,7 @@ On the Admin tab, the **Connectors** catalog shows each webhook connector's inge
 
 ## Changes by file
 
-These are the files the feature lives in today. Nothing changes in this document.
+Where the ingest code lives:
 
 | File | What it does for ingest |
 | --- | --- |
@@ -235,7 +235,7 @@ Not tested yet, and worth adding:
 
 ## Known limitations
 
-Found while reading the code. These are listed as they are; fixing them would be separate work.
+Ingest issues I found:
 
 1. **Cost is whatever the agent reports.** Unlike the gateway and fleet ingest, the run routes don't calculate cost from tokens and `config/pricing.json`. An agent that sends tokens but no cost is recorded at **$0**, and a wrong cost is stored as sent.
 2. **A refused run can be wrongly marked as a duplicate.** On `/api/ingest` the duplicate key is recorded **before** the plan and certification checks. If a run is refused (402 or 403) and sent again after the agent is certified or the plan upgraded, within 24 hours, it gets `duplicate` back and is **never saved**.

@@ -20,7 +20,7 @@ Total   = $119;  Agent Prism cost $50 → 2.4×
 Value delivered (not in total) = 100 tasks × 2 h × $85 = $17,000
 ```
 
-This document describes how these numbers work **today**. It's written from the code, not as a plan for new work.
+These numbers are described as the current code calculates them.
 
 ## What we have today
 
@@ -173,7 +173,7 @@ Assumptions must be numbers from 0 to 1,000 hours and from 0 to $10,000 an hour.
 
 ## Changes by file
 
-These are the files the feature lives in today. Nothing changes in this document.
+Savings and ROI code:
 
 | File | What it does for savings and ROI |
 | --- | --- |
@@ -204,7 +204,7 @@ Not tested yet, and worth adding:
 
 ## Known limitations
 
-Found while reading the code. These are listed as they are; fixing them would be separate work.
+Reasons to treat these numbers with care:
 
 1. **"Saved" credits Agent Prism with any drop in cost.** Comparing an agent with its first 14 days doesn't separate what Agent Prism did from anything else: a provider price cut, a cheaper model, an edit to `config/pricing.json`, or the agent being given easier tasks. An agent tested cheaply during onboarding, then used for real work, shows a loss. A baseline can't be reset, so there's no fix for a bad one.
 2. **Value delivered and ROI assume every success is 2 hours of a person's work.** A 3-second classification run and a long research run both count as 2 hours at $85. The savings report keeps this out of the total, but the team report's value, net value and ROI, and the session ROI's net savings and multiplier, are built entirely on it. The defaults are the same for every client unless someone changes `pricing.json` or the query.

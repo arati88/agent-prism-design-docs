@@ -17,7 +17,7 @@ This document is the map: how the pieces fit, how a request flows, what runs in 
 
 [docs/enterprise-control-plane-architecture.md](../enterprise-control-plane-architecture.md) (24 September 2026) is a **forward plan** for wallets, budgets, policies, a seat broker, work units and a model router. **None of it is built yet.** Parts of its "current architecture" section are now out of date, for example "~4,200 lines" and "binary viewer/full-access" roles (see the end of this document).
 
-This document describes the architecture **today**. It's written from the code, not as a plan for new work.
+It's a picture of the code as it is now, not of where we want it to go.
 
 ## What we have today
 
@@ -178,7 +178,7 @@ There's one SPA (`index.html` + `app.js`, about 25 requests per load) with Overv
 
 ## Changes by file
 
-These are the files that define the architecture today. Nothing changes in this document.
+The files that hold the architecture together:
 
 | File | Role |
 | --- | --- |
@@ -198,7 +198,7 @@ These are the files that define the architecture today. Nothing changes in this 
 
 ## Known limitations
 
-Found while reading the code. These are listed as they are; fixing them would be separate work.
+Weak spots in the current design:
 
 1. **One 5,500-line file holds every route.** Routes are an ordered `if`/`else` chain, so order matters: `/api/agents/certifications` must come before `/api/agents/:name`. Shared steps such as auth, plan checks and audit are repeated by hand in each route. Getting the order or the copy-paste wrong is a recurring source of bugs (for example, the gateway paths that miss the budget check).
 2. **Scaling out multiplies state that should be shared.** Everything in section 4 lives in each process. With several processes or replicas, rate limits multiply, circuits and ML models drift apart, SSO sign-ins and BYOK unseals break, and `/api/leaks` gives different answers. There's no shared cache (such as Redis).

@@ -17,7 +17,7 @@ Example: a gateway call to `claude-sonnet-4-5` uses 10,000 input tokens and 1,00
 10,000 × $0.000003 + 1,000 × $0.000015 = $0.030 + $0.015 = $0.045
 ```
 
-This document describes how cost works **today**. It's written from the code, not as a plan for new work.
+Everything below matches the current code.
 
 ## What we have today
 
@@ -151,7 +151,7 @@ Costs appear across the dashboard: Overview spend, Runs, cost leaks, Live Sessio
 
 ## Changes by file
 
-These are the files the feature lives in today. Nothing changes in this document.
+Cost code, file by file:
 
 | File | What it does for cost |
 | --- | --- |
@@ -180,7 +180,7 @@ Not tested yet, and worth adding:
 
 ## Known limitations
 
-Found while reading the code. These are listed as they are; fixing them would be separate work.
+Pricing issues I spotted:
 
 1. **The Sonnet 5 introductory price has expired but is still in the file.** Its own note says the `sonnet-5` entry ($2/$10) should be deleted after **2026-08-31**, so that Sonnet 5 falls back to the normal $3/$15. It's still there, so Sonnet 5 usage is currently **under-priced by about a third**.
 2. **The "out of date" warning is hardly ever seen.** `meta.pricingStale` is returned by `/api/metrics/summary`. Only the older `/dashboard` page shows it, as a banner, and that page doesn't load data for normal signed-in users (see [agent cost and ROI tracker](agent-cost-roi-tracker.md)). The main dashboard doesn't show it at all. `last_verified` is 2026-08-09, so it turns stale on about 2026-11-07, and almost nobody will see it.

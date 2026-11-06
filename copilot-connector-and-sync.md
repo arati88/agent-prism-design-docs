@@ -25,7 +25,7 @@ Copilot activity sent by webhook to `/api/ingest/copilot` is a separate path, co
 
 Example: Acme saves its org `acme-eng` and a token. An admin opens the Copilot panel, and Agent Prism reads 120 seats from GitHub; 14 have had no activity for 45 days, so they're idle. The 28-day report shows 18,400 AI credits. The model view for this month shows that "Claude Opus 4.7", chosen by hand, used 62% of all credits. That's a **medium** finding: "make Auto the default".
 
-This document describes the connector **today**. It's written from the code, not as a plan for new work.
+This is how the connector works today.
 
 ## What we have today
 
@@ -127,7 +127,7 @@ Totals are shown to everyone in the workspace. **Per-person** detail (seat holde
 
 ## Changes by file
 
-These are the files the feature lives in today. Nothing changes in this document.
+Where the Copilot sync code is:
 
 | File | What it does for Copilot |
 | --- | --- |
@@ -157,7 +157,7 @@ Not tested yet, and worth adding:
 
 ## Known limitations
 
-Found while reading the code. These are listed as they are; fixing them would be separate work.
+Known problems with the Copilot sync:
 
 1. **Nothing syncs unless someone opens the screen.** Budget breaches, new idle seats and usage only update when a person loads the Copilot panel. Nobody is alerted when a developer hits a cap or a seat goes idle.
 2. **Requests that arrive together all call GitHub.** There's no lock, so every request that finds the copy stale makes its own calls. This is worst for budgets, with one call per seat.

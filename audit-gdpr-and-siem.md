@@ -9,7 +9,7 @@
 
 Example: Bob (admin) approves the promotion of `invoice-bot`. The audit log gets `Agent Promotion Approved`, with actor `bob@acme.com`, resource `invoice-bot`, details `{ promotionId, requestedBy }` and IP `203.0.113.0` (last part zeroed). Its `prevHash` is the previous entry's hash. Within a second, Acme's Splunk receives `{ type: "agent_prism.audit_log", deliveredAt, event: {…} }` with an `X-Agent-Prism-Signature: sha256=…` header.
 
-This document describes how these work **today**. It's written from the code, not as a plan for new work.
+All of this describes the current code.
 
 ## What we have today
 
@@ -117,7 +117,7 @@ The SIEM can check the signature by computing HMAC-SHA256 over the raw body with
 
 ## Changes by file
 
-These are the files the feature lives in today. Nothing changes in this document.
+The audit, export and SIEM code is in:
 
 | File | What it does |
 | --- | --- |
@@ -145,7 +145,7 @@ Not tested yet, and worth adding:
 
 ## Known limitations
 
-Found while reading the code. These are listed as they are; fixing them would be separate work.
+Where audit, GDPR and SIEM fall short today:
 
 1. **The hash chain proves less than it suggests.** `details` and `ip` aren't part of the hash, so they can be edited without breaking it. Nothing ever checks the chain: there's no verify route or tool. Two entries written at the same moment can both use the same previous hash, which forks the chain, because the latest hash is read without a lock.
 2. **The audit log can only be read 100 entries at a time.** `/api/audit`, the CSV export and the GDPR export all return the latest 100 on Postgres, with no paging and no date filter. Older entries exist but can't be retrieved through the product.

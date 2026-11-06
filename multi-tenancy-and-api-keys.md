@@ -20,7 +20,7 @@ There are two kinds of "admin", and they're different things:
 
 Example: on a new installation, the operator calls `POST /api/bootstrap` with the company name and admin email. The answer includes the first workspace, its owner, and an API key `acp_3f9a…`. A CI agent then sends runs with `x-api-key: acp_3f9a…`, and they land in that workspace only.
 
-This document describes how it works **today**. It's written from the code, not as a plan for new work.
+This is how it works in the current code.
 
 ## What we have today
 
@@ -203,7 +203,7 @@ The operator routes (`/api/admin/*`) have no screen in the product. The vendor-o
 
 ## Changes by file
 
-These are the files the feature lives in today. Nothing changes in this document.
+Files involved in multi-tenancy:
 
 | File | What it does for multi-tenancy |
 | --- | --- |
@@ -240,7 +240,7 @@ Not tested yet, and worth adding:
 
 ## Known limitations
 
-Found while reading the code. These are listed as they are; fixing them would be separate work.
+Isolation and key-management gaps:
 
 1. **A workspace can't be suspended or deleted.** Workspaces have a `status`, but there's no route to change it. Password login, dashboard sessions, invites and token refresh (Postgres) check it, but API keys and the access tokens made from them don't. Even if a workspace were marked inactive in the database, its keys would keep working.
 2. **Default keys act as owner.** The key returned by bootstrap and provisioning, and any key the operator issues, has no recorded role, so it has full owner power, including erasing data. They're meant for first setup, but nothing prompts anyone to replace them with narrower keys.
