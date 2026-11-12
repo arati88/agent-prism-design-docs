@@ -223,6 +223,9 @@ What's tested today:
 - `test/certification.test.js`: tool danger levels (`classifyTool`, `classifyManifest`), which every normalizer uses.
 - `test/fleet-snapshots.test.js`, `test/daily-usage-rollup.test.js`: fleet snapshots, counting only increases, the daily rollup.
 - `test/security.test.js`: the `source` value check (`SCHEMAS.ingest`).
+- `test/hardening.test.js`: through the routes, bad JSON bodies get `400`, NUL characters are stripped, another workspace can't take over a run with the same id, concurrent ingests all save, and fleet ingest works.
+- `test/privacy.test.js`: the end-to-end privacy test sends personal data to `/api/ingest/generic` and `/api/fleet/ingest` and checks none of it is written to disk.
+- `test/postgres.integration.test.js`: the same checks on Postgres. Wrong types and NaN are never stored, and run ids are scoped to each workspace.
 - BDD: `features/08_webhook_ingest_invalid_json.feature`, `09_ingest_idempotency_key.feature`, `10_failed_ingest_retry_queue.feature`.
 
 Not tested yet, and worth adding:
