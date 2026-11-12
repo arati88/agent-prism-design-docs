@@ -2,7 +2,7 @@
 
 ## Introduction
 
-The **Live Sessions** view (one machine, or Fleet Mode across every machine running `collector.js`) has a **Fleet Overview** panel with a **health score** from 0 to 100 and a label:
+The Live Sessions view (one machine, or Fleet Mode across every machine running `collector.js`) has a Fleet Overview panel with a health score from 0 to 100 and a label:
 
 | Score | Label |
 | --- | --- |
@@ -14,21 +14,19 @@ The score starts at 100, and points come off for four things:
 
 | Factor | Deduction | Type |
 | --- | --- | --- |
-| Developer machines not reporting | Up to 15 in total: offline ÷ total × 15 | **risk** |
-| Unused AI processes still listening on a port ("orphan ports") | 5 each | **risk** |
-| Sessions at 90% or more of their context window | 18 each | **info** |
-| Sessions at 70–89% of their context window | 8 each | **info** |
+| Developer machines not reporting | Up to 15 in total: offline ÷ total × 15 | risk |
+| Unused AI processes still listening on a port ("orphan ports") | 5 each | risk |
+| Sessions at 90% or more of their context window | 18 each | info |
+| Sessions at 70–89% of their context window | 8 each | info |
 
-When the score is **below 80**, a plain-language explanation is always shown under the badge. It has one overall sentence ("N items for IT to fix…" or "Nothing urgent below…"), then one line per factor saying what it means and who should act. **Risk** items come first, whatever their points. The point numbers aren't shown.
+When the score is below 80, a plain-language explanation is always shown under the badge. It has one overall sentence ("N items for IT to fix…" or "Nothing urgent below…"), then one line per factor saying what it means and who should act. Risk items come first, whatever their points. The point numbers aren't shown.
 
 This document replaces the openspec change `openspec/changes/fleet-health-explainability/` in our format. That change fixed two problems:
 
-1. "Context Critical" used to say sessions "will lose work". In fact Claude Code **auto-compacts** history and carries on. The summary counted "critical" at 85% while the session bar used 90%, so the two could disagree.
+1. "Context Critical" used to say sessions "will lose work". In fact Claude Code auto-compacts history and carries on. The summary counted "critical" at 85% while the session bar used 90%, so the two could disagree.
 2. The score had no explanation at all.
 
-Example: 1 of 4 machines is offline, and one session is at 93% context. Deductions: offline 4 (¼ × 15, rounded), auto-compacting 18, so the score is **78, "Needs attention"**. The explanation says "1 item for IT to fix". It lists **"1 developer machine not reporting"** first (ask them to restart `collector.js`), then "1 session auto-summarising history: normal behaviour, not a problem".
-
-This is the panel as it works today.
+Example: 1 of 4 machines is offline, and one session is at 93% context. Deductions: offline 4 (¼ × 15, rounded), auto-compacting 18, so the score is 78, "Needs attention". The explanation says "1 item for IT to fix". It lists "1 developer machine not reporting" first (ask them to restart `collector.js`), then "1 session auto-summarising history: normal behaviour, not a problem".
 
 ## What we have today
 
@@ -43,9 +41,7 @@ This is the panel as it works today.
 
 ## What it does
 
-- Tells a non-technical viewer what's wrong with the fleet and who should fix it, without hovering.
-- Keeps the score and its explanation from disagreeing, because both come from the same list.
-- Makes sure expected behaviour (auto-compaction) is never described as data loss.
+It tells a non-technical viewer what's wrong with the fleet and who should fix it, without needing to hover. The score and the explanation come from the same list, so they can't disagree, and normal behaviour such as auto-compaction is never described as data loss.
 
 ## Where the data comes from
 
@@ -60,7 +56,7 @@ No server change was needed: everything is computed in the browser from data the
 
 ## How it works
 
-1. Count the context buckets: **critical** at 90% or more, **warning** at 70–89%, over every session in the snapshot.
+1. Count the context buckets: critical at 90% or more, warning at 70–89%, over every session in the snapshot.
 2. `healthScoreBreakdown` builds one item for each factor that's above zero:
 
 | Factor | Headline | Sentence (in short) |
@@ -70,7 +66,7 @@ No server change was needed: everything is computed in the browser from data the
 | Context ≥ 90% | "N sessions auto-summarising history" | Normal; only look if answers start repeating or forgetting |
 | Context 70–89% | "N sessions approaching that same point" | No action needed yet |
 
-3. Sort: **risk** before **info**, then larger deductions first.
+3. Sort: risk before info, then larger deductions first.
 4. Score = max(0, round(100 − total deductions)). Label from the table above.
 5. With a score below 80 and at least one item, show the explanation: one overall sentence, then each item's headline and sentence.
 6. The KPI tile reads "Context Critical: history auto-compacted, work continues" when any session is at 90% or more. Otherwise it shows "Context Pressure", either as a count or "all sessions healthy".
@@ -81,9 +77,9 @@ None. It uses the existing `/api/fleet/sessions` and Live Sessions data.
 
 ## Dashboard / UI
 
-The **Live Sessions → Fleet Overview** panel, in both single-machine and Fleet Mode: health badge, KPI tiles (Machines, Active Sessions, Tokens In Flight, Context Critical/Pressure…), and the explanation block when the score is below 80.
+The Live Sessions → Fleet Overview panel, in both single-machine and Fleet Mode: health badge, KPI tiles (Machines, Active Sessions, Tokens In Flight, Context Critical/Pressure…), and the explanation block when the score is below 80.
 
-## Changes by file
+## Code by file
 
 Where it's implemented:
 

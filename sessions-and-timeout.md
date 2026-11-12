@@ -2,21 +2,19 @@
 
 ## Introduction
 
-An **agent session** is one working period of an agent or assistant, for example one Claude Code session or one Copilot day. It's tracked separately from runs. A client:
+An agent session is one working period of an agent or assistant, for example one Claude Code session or one Copilot day. It's tracked separately from runs. A client:
 
 1. **Opens** a session (`POST /api/sessions`).
 2. **Adds usage** to it as it goes (`POST /api/usage`), as tokens, seat hours or a dollar amount. Agent Prism prices it and adds it to the session's cost.
 3. **Updates its status** (`PATCH /api/sessions/:id`): running, idle, completed or error.
 
-A session that sends nothing for **30 minutes** (`session_timeout_minutes` in `config/pricing.json`) is marked **timed out**.
+A session that sends nothing for 30 minutes (`session_timeout_minutes` in `config/pricing.json`) is marked timed out.
 
 Sessions feed `/api/metrics/cost` (cost by platform), `/api/metrics/roi` and `/api/metrics/summary` (session ROI: completed sessions × hours saved × hourly rate, see [savings and ROI](savings-and-roi.md)), and `/api/sessions/active` (how many are running now).
 
-Sessions are **not** the same as the dashboard's **Live Sessions** view. That comes from the fleet collector (`/api/fleet/*`), which has its own document.
+Sessions are not the same as the dashboard's Live Sessions view. That comes from the fleet collector (`/api/fleet/*`), described under [Fleet ingest](passive-ingest.md#fleet-ingest).
 
-Example: a script opens session `sess_42` for `claude`. It reports usage twice: 20,000 input and 2,000 output tokens on `claude-haiku-4-5` ($0.03), then the same again, for a session cost of **$0.06**. It then sets the status to `completed`. The session ROI counts it as 1 completed session = 2 hours × $85 = $170 of value against $0.06 of cost.
-
-This is how sessions work in the current code.
+Example: a script opens session `sess_42` for `claude`. It reports usage twice: 20,000 input and 2,000 output tokens on `claude-haiku-4-5` ($0.03), then the same again, for a session cost of $0.06. It then sets the status to `completed`. The session ROI counts it as 1 completed session = 2 hours × $85 = $170 of value against $0.06 of cost.
 
 ## What we have today
 
@@ -32,10 +30,7 @@ This is how sessions work in the current code.
 
 ## What it does
 
-- Gives scripts and integrations without a gateway or ingest path a simple way to report cost as it happens.
-- Shows cost by platform for today, the last 7 days and the last 30 days.
-- Counts how many sessions are active right now.
-- Closes forgotten sessions automatically, so "active" stays accurate.
+Scripts and integrations that don't use the gateway or ingest get a simple way to report cost as it happens. It shows cost by platform for today, the last 7 days and the last 30 days, counts how many sessions are active right now, and closes forgotten sessions on its own so the active count stays right.
 
 ## Where the data comes from
 
@@ -74,7 +69,7 @@ The response is `{ session_id, costDelta, sessionCostUsd }`. `server.js` has an 
 
 ### 3. Timeout
 
-`runSessionTimeout()` runs **at the start of** each `/api/sessions/active`, `/api/metrics/cost`, `/api/metrics/roi` and `/api/metrics/summary` request. There's no schedule. It sets **every** `running` or `idle` session, in **all** workspaces, whose last seen is older than 30 minutes to `timed_out`.
+`runSessionTimeout()` runs at the start of each `/api/sessions/active`, `/api/metrics/cost`, `/api/metrics/roi` and `/api/metrics/summary` request. There's no schedule. It sets every `running` or `idle` session, in all workspaces, whose last seen is older than 30 minutes to `timed_out`.
 
 ### 4. Windows and totals
 
@@ -84,7 +79,7 @@ The response is `{ session_id, costDelta, sessionCostUsd }`. `server.js` has an 
 | `week` | 7 days ago |
 | `30d` (default, also any other value) | 30 days ago |
 
-A session is in a window if it **started or was last seen** inside it. Its **whole** cost counts. Cost is added up by platform.
+A session is in a window if it started or was last seen inside it. Its whole cost counts. Cost is added up by platform.
 
 ### 5. Retention
 
@@ -108,7 +103,7 @@ Session object: `{ id, tenantId, platform, status, startTime, lastSeen, endTime,
 
 The main dashboard doesn't show agent sessions. The older `/dashboard` page (`public/dashboard.html`) polls `/api/metrics/summary` for active agents, cost and ROI by day and month. It's also in the Postman collection (`postman/agent-prism.postman_collection.json`).
 
-## Changes by file
+## Code by file
 
 Session code lives in:
 
@@ -143,5 +138,5 @@ Session issues I found:
 
 1. **OpenAI usage can't be reported.** The schemas only allow `claude`, `copilot` and `generic`, so `platform: "openai"` gets `400`, and the OpenAI pricing in `/api/usage` is never used. OpenAI users have to send `generic` with their own `cost_usd`.
 2. **A session has no agent, team or model.** It only records a platform, so session cost and ROI can't be split by agent or team, and sessions aren't linked to runs.
-3. **The timeout runs only when someone reads the metrics.** If nobody calls those four routes, sessions stay "running" forever. When someone does, the sweep updates **every workspace's** sessions, which is extra work on a busy installation.
+3. **The timeout runs only when someone reads the metrics.** If nobody calls those four routes, sessions stay "running" forever. When someone does, the sweep updates every workspace's sessions, which is extra work on a busy installation.
 4. **A timed-out session can still collect cost, and come back.** Usage after a timeout is added and updates last seen, but the status stays `timed_out`, so it's not counted as active. A `PATCH` can set it back to `running`. Timed-out and errored sessions never count as completed, so they add cost to the ROI but no value.

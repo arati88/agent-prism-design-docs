@@ -2,21 +2,19 @@
 
 ## Introduction
 
-Spend History has a **Plan Utilization** panel that compares a team's **AI consumption value** with what it **pays** for its AI coding-tool plan, for example Claude Team at $30 a seat. It shows three figures:
+Spend History has a Plan Utilization panel that compares a team's AI consumption value with what it pays for its AI coding-tool plan, for example Claude Team at $30 a seat. It shows three figures:
 
 - **Allocated licence cost** for the selected range: seats × price per seat per month × days ÷ 30.
 - **AI consumption value**: token activity in the same range, priced at API list prices (see [consumption history](consumption-history-and-burn-rate.md)).
 - **License Value Multiple** = consumption value ÷ allocated licence cost, with a band: Poor below 1×, Low 1–3×, Healthy 3–7×, High 7–15×, Very High above 15×.
 
-Then a **recommendation**. The workspace sets a **target multiple** (default 3×). If the multiple is more than 20% below target, seats look **underused**. More than 20% above, seats look **near or over capacity**. Otherwise it's **on target**. In the first two cases, the panel suggests the seat count that would hit the target, and **Adjust seats → N** opens the Edit Plan form with that number filled in. Nothing is saved until someone clicks Save. The banner can be dismissed until the next refresh.
+Then a recommendation. The workspace sets a target multiple (default 3×). If the multiple is more than 20% below target, seats look underused. More than 20% above, seats look near or over capacity. Otherwise it's on target. In the first two cases, the panel suggests the seat count that would hit the target, and Adjust seats → N opens the Edit Plan form with that number filled in. Nothing is saved until someone clicks Save. The banner can be dismissed until the next refresh.
 
-The plan figures (plan name, seats, price per seat, target) are entered by hand. This is the customer's **own** AI-tool subscription, not Agent Prism's edition (see [licensing and plans](licensing-and-plans.md)).
+The plan figures (plan name, seats, price per seat, target) are entered by hand. This is the customer's own AI-tool subscription, not Agent Prism's edition (see [licensing and plans](licensing-and-plans.md)).
 
 This document replaces the openspec change `openspec/changes/archive/2026-08-24-plan-utilization-recommendation/` and its spec in our format.
 
-Example: 10 seats at $30 a month, a 30-day range, $450 of consumption value. Allocated cost is $300, the multiple is **1.5×** ("Low"), and the target is 3×. 1.5 is below 2.4 (80% of target), so the panel says "underused". The suggested seats are round(450 ÷ (3 × 30 × 1)) = **5**, shown as "Consider cutting to 5 seats to hit target".
-
-This is the panel as it's coded today.
+Example: 10 seats at $30 a month, a 30-day range, $450 of consumption value. Allocated cost is $300, the multiple is 1.5× ("Low"), and the target is 3×. 1.5 is below 2.4 (80% of target), so the panel says "underused". The suggested seats are round(450 ÷ (3 × 30 × 1)) = 5, shown as "Consider cutting to 5 seats to hit target".
 
 ## What we have today
 
@@ -32,16 +30,14 @@ This is the panel as it's coded today.
 
 ## What it does
 
-- Turns "are we getting our money's worth from these seats?" into a number and a suggested action.
-- Lets a manager set what "good" means for them (the target).
-- Never changes anything by itself.
+It turns "are we getting our money's worth from these seats?" into a number and a suggested action. A manager sets what good looks like for their team (the target), and the panel never changes anything by itself.
 
 ## Where the data comes from
 
 | Input | Source |
 | --- | --- |
 | Consumption value | `summary.totalCostUsd` from `/api/usage/daily` for the selected range |
-| Days | `daily.length`: the number of days **with usage rows** in the range |
+| Days | `daily.length`: the number of days with usage rows in the range |
 | Active developers | Developers in the rows |
 | Plan name, seats, price, target | `/api/tenant/plan-config`. Defaults when nothing is saved, or the call fails: Pro, 1 seat, $20, 3× |
 
@@ -73,9 +69,9 @@ Below the multiple: "This is a utilization/economic efficiency indicator and sho
 
 ## Dashboard / UI
 
-**Spend History → Plan Utilization:** three stat tiles, a one-line summary ("N developers generated $X of AI consumption value against $Y…"), the recommendation banner with **Adjust seats → N** and **Dismiss**, and **Edit Plan** (plan name, seats, price per seat, target multiple).
+**Spend History → Plan Utilization:** three stat tiles, a one-line summary ("N developers generated $X of AI consumption value against $Y…"), the recommendation banner with Adjust seats → N and Dismiss, and Edit Plan (plan name, seats, price per seat, target multiple).
 
-## Changes by file
+## Code by file
 
 Where the panel is implemented:
 
@@ -99,4 +95,4 @@ Why the recommendation can be misleading:
 
 1. **"Days" means days with usage, not days in the range.** Licence cost is prorated by `daily.length`. A 30-day range where usage happened on 10 days is charged as 10 days of licence, so the multiple looks three times better than it is. "All Time" is prorated over however many days happen to have data.
 2. **The suggestion ignores how many people use the tool.** It solves the ratio for seats without looking at active developers. Ten active developers can get "cut to 3 seats". The seat count is never compared with real seat assignments, such as Copilot seats or SCIM users.
-3. **"Over capacity" isn't really about capacity.** A high multiple means each seat produces a lot of list-price value, which suggests the subscription is good value. The banner says to **add** seats, which only lowers the ratio back to target. The recommendation steers towards a target ratio, not towards what the team needs.
+3. **"Over capacity" isn't really about capacity.** A high multiple means each seat produces a lot of list-price value, which suggests the subscription is good value. The banner says to add seats, which only lowers the ratio back to target. The recommendation steers towards a target ratio, not towards what the team needs.

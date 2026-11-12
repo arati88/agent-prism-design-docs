@@ -2,22 +2,20 @@
 
 ## Introduction
 
-Agent Prism is a **single Node.js server** (ESM, raw `node:http`, no framework) that:
+Agent Prism is a single Node.js server (ESM, raw `node:http`, no framework) that:
 
 - takes in AI-agent telemetry in two ways:
-  - the **live gateway**, which forwards agents' calls to Anthropic, OpenAI or Azure and records them;
+  - the live gateway, which forwards agents' calls to Anthropic, OpenAI or Azure and records them;
   - **passive ingest**, where agents and webhooks report runs;
-- stores it per **workspace** (tenant) in a **JSON file** or **Postgres**;
+- stores it per workspace (tenant) in a JSON file or Postgres;
 - turns it into cost, control score, cost leaks, certification, ROI, savings and Copilot views;
 - serves a browser dashboard, an SPA built from static files.
 
-It's a **modular monolith**: one process, one `server.js` with every route, and `src/` modules for each concern. `npm run cluster` runs one copy per CPU. Several replicas can share one Postgres database.
+It's a modular monolith: one process, one `server.js` with every route, and `src/` modules for each concern. `npm run cluster` runs one copy per CPU. Several replicas can share one Postgres database.
 
 This document is the map: how the pieces fit, how a request flows, what runs in the background, how it's deployed, what state lives in memory, and what the October 2026 stress test showed. Each feature has its own design document; this one links to them.
 
-[docs/enterprise-control-plane-architecture.md](../enterprise-control-plane-architecture.md) (24 September 2026) is a **forward plan** for wallets, budgets, policies, a seat broker, work units and a model router. **None of it is built yet.** Parts of its "current architecture" section are now out of date, for example "~4,200 lines" and "binary viewer/full-access" roles (see the end of this document).
-
-It's a picture of the code as it is now, not of where we want it to go.
+[docs/enterprise-control-plane-architecture.md](../enterprise-control-plane-architecture.md) (24 September 2026) is a forward plan for wallets, budgets, policies, a seat broker, work units and a model router. None of it is built yet. Parts of its "current architecture" section are now out of date, for example "~4,200 lines" and "binary viewer/full-access" roles (see the end of this document).
 
 ## What we have today
 
@@ -75,9 +73,7 @@ flowchart LR
 
 ## What it does
 
-- Keeps the whole product deployable as one container with one optional database, on any cloud, on-prem or air-gapped.
-- Keeps every feature's logic in a plain module that can be tested without HTTP: scoring, ROI, savings, licence, value report.
-- Swaps storage behind one interface (`saas-store`), so the file backend works for demos and Postgres for production.
+The whole product deploys as one container with one optional database, on any cloud, on-prem or air-gapped. Each feature's logic (scoring, ROI, savings, licence, value report) sits in a plain module that can be tested without HTTP. Storage sits behind one interface (`saas-store`), which is why the file backend can serve demos while Postgres serves production.
 
 ## Where the data comes from
 
@@ -116,7 +112,7 @@ Both feed `buildDashboardSnapshot` on the next `/api/dashboard` request.
 
 ### 3. Background work
 
-Timers run in **every process**. There's no external scheduler.
+Timers run in every process. There's no external scheduler.
 
 | Job | How often | Backend |
 | --- | --- | --- |
@@ -127,7 +123,7 @@ Timers run in **every process**. There's no external scheduler.
 | Failed-ingest retry | Every 5 min (20 at a time) | Both |
 | Idempotency key cleanup | Hourly (older than 24 h) | Both |
 | Rate-limiter cleanup | Every 60 s | Both |
-| Session timeout, Copilot syncs, file-store ML fit | **When a request needs them** | Both |
+| Session timeout, Copilot syncs, file-store ML fit | When a request needs them | Both |
 | Database preparation (migrations, schema patches under an advisory lock) | At startup | Postgres |
 
 ### 4. What lives in memory (per process)
@@ -166,7 +162,7 @@ From [docs/STRESS-TEST.md](../STRESS-TEST.md). The setup was one process on an 8
 | File backend, 400 concurrent writes | 400 of 400 stored |
 | Memory over the soak | Flat, 170–185 MB |
 
-27 problems were found and fixed, 4 of them critical. These were: a cross-tenant run takeover through reused run ids, a crash on any database interruption, ingest slowing as history grew, and the file backend losing concurrent writes. Regression tests are in `test/hardening.test.js` and `test/postgres.integration.test.js`. Before each release, re-run against staging: `node scripts/stress/load.mjs mixed 50 60` and `node scripts/stress/fuzz.mjs`.
+27 problems were found and fixed, 4 of them critical. These were: a cross-workspace run takeover through reused run ids, a crash on any database interruption, ingest slowing as history grew, and the file backend losing concurrent writes. Regression tests are in `test/hardening.test.js` and `test/postgres.integration.test.js`. Before each release, re-run against staging: `node scripts/stress/load.mjs mixed 50 60` and `node scripts/stress/fuzz.mjs`.
 
 ## API
 
@@ -176,7 +172,7 @@ About 110 routes. The groups are listed in `CLAUDE.md` (API surface) and in each
 
 There's one SPA (`index.html` + `app.js`, about 25 requests per load) with Overview, Token Coach, Activity, Governance, Certification, Reports and Admin. Older and secondary pages (`/dashboard`, `admin.html`, `leadership.html`, `storyline.html`) are served from `public/`; `/setup` serves the main SPA page again.
 
-## Changes by file
+## Code by file
 
 The files that hold the architecture together:
 

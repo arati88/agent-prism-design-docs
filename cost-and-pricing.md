@@ -9,15 +9,13 @@ There are two parts:
 - **One price list**, `config/pricing.json`. It holds every rate: price per token for each Claude and OpenAI model, Copilot seat and credit prices, and the human-work rates used for ROI.
 - **Four small calculators** in `src/cost/`, one per provider. Each reads its rates from the price list. No rate is written anywhere else in the code.
 
-The price list **reloads by itself**: edit the file and the next calculation uses the new rate, with no restart and no redeploy.
+The price list reloads by itself: edit the file and the next calculation uses the new rate, with no restart and no redeploy.
 
 Example: a gateway call to `claude-sonnet-4-5` uses 10,000 input tokens and 1,000 output tokens. The model name contains `sonnet`, so it gets the Sonnet rates ($3 and $15 per million tokens):
 
 ```text
 10,000 × $0.000003 + 1,000 × $0.000015 = $0.030 + $0.015 = $0.045
 ```
-
-Everything below matches the current code.
 
 ## What we have today
 
@@ -32,11 +30,9 @@ Everything below matches the current code.
 
 ## What it does
 
-- Gives every part of Agent Prism **one way** to price usage, so the same call always costs the same everywhere.
-- Picks the **right rate for the model**, so an Opus call costs more than a Haiku call.
-- Lets an admin **change prices without a restart**, for example when a vendor changes its pricing.
-- Never crashes on bad input: missing or invalid numbers give $0, never `NaN` or an error.
-- For Copilot credits, says **"unknown"** (`null`) rather than $0 when no price has been set, so Copilot never looks free by mistake.
+Every part of Agent Prism prices usage the same way, so the same call costs the same everywhere. The rate depends on the model, so an Opus call costs more than a Haiku call, and an admin can change prices without a restart, for example when a vendor changes its pricing.
+
+Bad input never crashes it: missing or invalid numbers give $0, never `NaN` or an error. For Copilot credits with no price set it says "unknown" (`null`) instead of $0, so Copilot never looks free by mistake.
 
 ## Where the data comes from
 
@@ -76,11 +72,11 @@ These come from whoever calls the calculator:
 | --- | --- | --- |
 | Gateway `/v1/messages` | Anthropic's response `usage`, including cache tokens | Claude |
 | Gateway `/v1/responses`, `/v1/chat/completions`, `/v1/azure/…` | OpenAI's or Azure's response `usage` | OpenAI (Azure uses the deployment name as the model) |
-| Fleet ingest and the local Live Sessions scan | The **increase** in a session's token totals since the last snapshot | Claude |
+| Fleet ingest and the local Live Sessions scan | The increase in a session's token totals since the last snapshot | Claude |
 | Live Sessions view (`/api/fleet/sessions`, local sessions) | A session's full totals, for "cost so far" and burn rate | Claude |
 | `POST /api/usage` | `input_tokens`, `output_tokens`, `seat_hours` or `cost_usd` in the request, chosen by `platform` | Claude, Copilot (seat hours) or generic. OpenAI is rejected by validation |
 | Copilot panel, Return on Copilot | GitHub's AI credits and seat plans | Copilot credit and seat cost |
-| Passive ingest runs (`/api/ingest*`) | **None. The agent's reported `costUsd` is stored as sent** | — |
+| Passive ingest runs (`/api/ingest*`) | None. The agent's reported `costUsd` is stored as sent | — |
 
 ## How it works
 
@@ -89,7 +85,7 @@ These come from whoever calls the calculator:
 `resolveClaudeRates` and `resolveOpenAiRates`:
 
 1. Lowercase the model name.
-2. Go through the `models` entries **in the order they appear in the file**. The first family name found *inside* the model name wins. For example, `claude-opus-4-6` contains `opus`.
+2. Go through the `models` entries in the order they appear in the file. The first family name found *inside* the model name wins. For example, `claude-opus-4-6` contains `opus`.
 3. If nothing matches, or no model was given, use the platform's fallback rates.
 
 Order matters. A more specific key must come first: `gpt-4o-mini` before `gpt-4o`, and `sonnet-5` before `sonnet`. Otherwise `gpt-4o-mini` would get the `gpt-4o` price.
@@ -114,13 +110,13 @@ If a needed rate is missing, the calculator returns $0. If the result isn't a va
 
 ### Reloading the price list
 
-- At start-up, `src/pricing.js` reads the file and **stops the server** if it's missing or a required field is absent: Claude and OpenAI input/output rates, `copilot.hourly_seat_rate`, both `fte` fields and `session_timeout_minutes`.
-- Before **every** calculation, `refreshPricingIfStale()` checks the file's modified time, which is a single cheap file check. If the file changed, it's read again and the rates are replaced in place.
-- If the new file is broken, for example half-saved or with a field missing, the change is **ignored**: the last good rates stay in use, an error is logged, and it tries again on the next calculation.
+- At start-up, `src/pricing.js` reads the file and stops the server if it's missing or a required field is absent: Claude and OpenAI input/output rates, `copilot.hourly_seat_rate`, both `fte` fields and `session_timeout_minutes`.
+- Before every calculation, `refreshPricingIfStale()` checks the file's modified time, which is a single cheap file check. If the file changed, it's read again and the rates are replaced in place.
+- If the new file is broken, for example half-saved or with a field missing, the change is ignored: the last good rates stay in use, an error is logged, and it tries again on the next calculation.
 
 ### "Rates may be out of date"
 
-`isPricingStale()` returns true when `last_verified` is missing or more than **90 days** old. `GET /api/metrics/summary` returns it as `meta.pricingStale` with `meta.pricingLastVerified`.
+`isPricingStale()` returns true when `last_verified` is missing or more than 90 days old. `GET /api/metrics/summary` returns it as `meta.pricingStale` with `meta.pricingLastVerified`.
 
 ## API
 
@@ -149,7 +145,7 @@ There's no pricing screen. Changing a rate means editing `config/pricing.json` o
 
 Costs appear across the dashboard: Overview spend, Runs, cost leaks, Live Sessions burn rate, AI Consumption History, the Copilot panel, Return on Copilot and the savings report.
 
-## Changes by file
+## Code by file
 
 Cost code, file by file:
 
@@ -167,7 +163,7 @@ Cost code, file by file:
 
 What's tested today:
 
-- `test/cost.test.js`: Claude and OpenAI input + output; zero tokens; Opus priced above and Haiku below the Sonnet fallback; unknown model uses the fallback; cache tokens are billed; `gpt-4o-mini` is matched before `gpt-4o`; **an edited rate takes effect without a restart**; Copilot seat hours; generic pass-through and missing cost.
+- `test/cost.test.js`: Claude and OpenAI input + output; zero tokens; Opus priced above and Haiku below the Sonnet fallback; unknown model uses the fallback; cache tokens are billed; `gpt-4o-mini` is matched before `gpt-4o`; an edited rate takes effect without a restart; Copilot seat hours; generic pass-through and missing cost.
 - `test/pricing.test.js`: the price list loads with its required fields; a recent `last_verified` isn't stale.
 - `test/copilot-roi.test.js`: Copilot seat cost per plan and credit cost only when a price is set.
 
@@ -182,7 +178,7 @@ Not tested yet, and worth adding:
 
 Pricing issues I spotted:
 
-1. **The Sonnet 5 introductory price has expired but is still in the file.** Its own note says the `sonnet-5` entry ($2/$10) should be deleted after **2026-08-31**, so that Sonnet 5 falls back to the normal $3/$15. It's still there, so Sonnet 5 usage is currently **under-priced by about a third**.
+1. **The Sonnet 5 introductory price has expired but is still in the file.** Its own note says the `sonnet-5` entry ($2/$10) should be deleted after 2026-08-31, so that Sonnet 5 falls back to the normal $3/$15. It's still there, so Sonnet 5 usage is currently under-priced by about a third.
 2. **Newer models fall back to default prices.** Only four OpenAI families are listed. Models such as `gpt-4.1`, `gpt-5` or `o3` get the default $2.50/$10, which may be well off. Older Claude models are priced at current rates too: for example `opus` matches older, more expensive Opus versions at today's $5/$25.
 3. **Name matching can pick the wrong entry.** The first family name found anywhere in the model name wins, so a model whose name contains an existing key gets that key's price. For example, `o1-mini` matches `o1` and is charged the full o1 price. File order is the only safeguard.
 4. **Passive ingest runs aren't priced by Agent Prism.** The run routes store the cost the agent reports (see [passive ingest](passive-ingest.md)). Runs with tokens but no cost show as $0, and their cost doesn't follow edits to the price list.

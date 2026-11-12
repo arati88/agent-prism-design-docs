@@ -4,14 +4,14 @@
 
 Agent Prism answers "is this worth it?" in four places:
 
-- **Savings report** (Reports → Savings report). This is for the CFO. It shows money **Saved** (measured against each agent's own first 14 days), money **Avoided** (gateway requests a budget stopped), money **Still to capture** (waste found but not fixed) and **Value delivered** (hours of work × hourly rate). Only Saved and Avoided are added to the total. Once the monthly cost of Agent Prism is entered, it also shows the return as a multiple ("8.2× what you paid"). It downloads as PDF or CSV.
+- **Savings report** (Reports → Savings report). This is for the CFO. It shows money Saved (measured against each agent's own first 14 days), money Avoided (gateway requests a budget stopped), money Still to capture (waste found but not fixed) and Value delivered (hours of work × hourly rate). Only Saved and Avoided are added to the total. Once the monthly cost of Agent Prism is entered, it also shows the return as a multiple ("8.2× what you paid"). It downloads as PDF or CSV.
 - **Team report** (Reports → Team report). What each team spent on AI (their agents, their developers' coding assistants and Copilot), and the value of the work their agents completed.
 - **ROI summary** (`/api/roi-summary`). The Overview's "recoverable per month" figure: projected monthly spend, how much of it is leaking, and how much Token Coach says can be recovered.
 - **Session ROI** (`/api/metrics/roi`, `/api/metrics/summary`). Completed sessions × hours a person would have needed × hourly rate, compared with what the agents cost.
 
 Return on Copilot has its own design document ([copilot-roi](copilot-roi.md)). The user guide for the savings report is [docs/SAVINGS-REPORT.md](../SAVINGS-REPORT.md).
 
-Example: in its first 14 days, `invoice-bot` spent $60 on 40 runs, 30 of them successful, so its baseline is **$2.00 per task**. In October it spent $90 on 120 runs, 100 of them successful: $0.90 per task.
+Example: in its first 14 days, `invoice-bot` spent $60 on 40 runs, 30 of them successful, so its baseline is $2.00 per task. In October it spent $90 on 120 runs, 100 of them successful: $0.90 per task.
 
 ```text
 Saved   = ($2.00 − $0.90) × 100 tasks          = $110
@@ -19,8 +19,6 @@ Avoided = 12 blocked minutes × $0.75 avg/run   = $9
 Total   = $119;  Agent Prism cost $50 → 2.4×
 Value delivered (not in total) = 100 tasks × 2 h × $85 = $17,000
 ```
-
-These numbers are described as the current code calculates them.
 
 ## What we have today
 
@@ -38,18 +36,16 @@ These numbers are described as the current code calculates them.
 
 ## What it does
 
-- Gives finance one page with money split by how certain it is: measured, avoided, found, and productivity.
-- Compares each agent with **itself**, so a cheap agent and an expensive one are both measured fairly.
-- Counts losses: agents that got more expensive reduce the total.
-- Shows the return on Agent Prism once its cost is entered.
-- Splits AI spend and value by team, for chargeback.
+Finance gets one page where money is split by how sure we are of it: measured, avoided, found, and productivity. Each agent is compared with itself, so cheap and expensive agents are both judged fairly, and agents that got more expensive count as losses that reduce the total.
+
+Once Agent Prism's own cost is entered, the page shows its return. Spend and value can also be split by team, for chargeback.
 
 ## Where the data comes from
 
 | Number | Source |
 | --- | --- |
 | Runs, successful runs and cost for each agent and day | `agent_runs` in the chosen period (UTC days). A success is `success` or `completed` |
-| Baseline | Each agent's runs in the 14 days from its **first run**, recorded once in `agent_baselines` |
+| Baseline | Each agent's runs in the 14 days from its first run, recorded once in `agent_baselines` |
 | Blocked requests | `spend_blocks`: one row for each workspace, provider, API key and minute in which the gateway refused a request because the monthly budget was reached, with a count of requests |
 | Still to capture | Run value report: low-value spend in the last 30 days (up to 5,000 runs) |
 | Hours per task, hourly rate | `fte` in `config/pricing.json`, or `hoursPerTask` and `hourlyRate` in the request |
@@ -61,19 +57,19 @@ These numbers are described as the current code calculates them.
 
 ### 1. Recording baselines
 
-`captureAgentBaselines` runs **every hour on Postgres** and every time the savings report is opened. For each agent that doesn't have a baseline yet:
+`captureAgentBaselines` runs every hour on Postgres and every time the savings report is opened. For each agent that doesn't have a baseline yet:
 
 | Situation | Result |
 | --- | --- |
 | Less than 14 days since its first run | Pending: "collecting", with the date it will be ready and the days left |
 | 14 days passed, fewer than 5 successful tasks in them | Pending: "insufficient" |
-| 14 days passed, 5 or more successful tasks | Saved: runs, successes, cost, and **cost per success = all cost in the window ÷ successful tasks** |
+| 14 days passed, 5 or more successful tasks | Saved: runs, successes, cost, and cost per success = all cost in the window ÷ successful tasks |
 
 A baseline is never changed after it's saved (`on conflict do nothing`).
 
 ### 2. Saved
 
-For each agent with a baseline, only days **after** the baseline window, within the report period, count:
+For each agent with a baseline, only days after the baseline window, within the report period, count:
 
 ```text
 cost per task now = spend ÷ successful tasks
@@ -93,7 +89,7 @@ A blocked request is recorded when the gateway refuses it because the month's sp
 
 ### 4. Still to capture
 
-This is the Run value report's low-value spend over the last 30 days, the basis ("standard rules" or "your team's 👍/👎 labels"), and the top 3 agents with their reason and fix. It's **not** added to the total.
+This is the Run value report's low-value spend over the last 30 days, the basis ("standard rules" or "your team's 👍/👎 labels"), and the top 3 agents with their reason and fix. It's not added to the total.
 
 ### 5. Value delivered
 
@@ -101,7 +97,7 @@ This is the Run value report's low-value spend over the last 30 days, the basis 
 value delivered = successful tasks × hours per task × hourly rate
 ```
 
-It's **not** added to the total. The report calls it productivity, not cash.
+It's not added to the total. The report calls it productivity, not cash.
 
 ### 6. Headline and return
 
@@ -125,7 +121,7 @@ ROI         = value ÷ total spend
 cost per successful run = agent spend ÷ successful runs
 ```
 
-Coding-assistant and Copilot usage add to spend but **not** to value. Copilot uses GitHub's rolling 28 days, not the report dates. Copilot spend is `null` until a credit price is set. Anything without a team goes to "Unassigned".
+Coding-assistant and Copilot usage add to spend but not to value. Copilot uses GitHub's rolling 28 days, not the report dates. Copilot spend is `null` until a credit price is set. Anything without a team goes to "Unassigned".
 
 ### 8. ROI summary (`/api/roi-summary`)
 
@@ -138,7 +134,7 @@ projected monthly recoverable = sum of Token Coach suggestions' monthly savings
 recoverable %                 = recoverable ÷ projected spend, at most 100%
 ```
 
-It also returns the leak count, the top 5 leaks and the top 5 recommendations, with a note that the savings overlap. The Overview shows "recoverable per month" from this. If the call fails, it shows **$14 × the number of leaks** instead.
+It also returns the leak count, the top 5 leaks and the top 5 recommendations, with a note that the savings overlap. The Overview shows "recoverable per month" from this. If the call fails, it shows $14 × the number of leaks instead.
 
 ### 9. Session ROI (`/api/metrics/roi`, `/api/metrics/summary`)
 
@@ -167,11 +163,11 @@ Assumptions must be numbers from 0 to 1,000 hours and from 0 to $10,000 an hour.
 
 ## Dashboard / UI
 
-- **Savings report.** Cards for Saved, Avoided, Total, Still to capture and Value delivered. A table for each agent (baseline, now, tasks, spend, saved), agents still collecting with their ready date, avoided by provider, all assumptions printed, the return once the monthly cost is set, and **Save as PDF** and **CSV**.
+- **Savings report.** Cards for Saved, Avoided, Total, Still to capture and Value delivered. A table for each agent (baseline, now, tasks, spend, saved), agents still collecting with their ready date, avoided by provider, all assumptions printed, the return once the monthly cost is set, and Save as PDF and CSV.
 - **Team report.** One row per team with spend by source, hours saved, value, net value and ROI, and a CSV download.
 - **Overview.** "Recoverable per month" from the ROI summary.
 
-## Changes by file
+## Code by file
 
 Savings and ROI code:
 

@@ -4,9 +4,9 @@
 
 Passive ingest is the second of the two ways run data gets into Agent Prism. The first is the [live gateway proxy](gateway-proxy.md).
 
-With the gateway, Agent Prism sits in the middle of every model call. With passive ingest it doesn't: the agent calls its model provider directly, as usual, and **afterwards** sends Agent Prism a short report of the run. The report says which agent ran, which model it used, the tokens, the cost, how long it took, and whether it succeeded.
+With the gateway, Agent Prism sits in the middle of every model call. With passive ingest it doesn't: the agent calls its model provider directly, as usual, and afterwards sends Agent Prism a short report of the run. The report says which agent ran, which model it used, the tokens, the cost, how long it took, and whether it succeeded.
 
-Passive ingest works for any agent on any provider, including ones the gateway doesn't support (Copilot, LangChain, custom agents, CI jobs). It needs no change to how the agent talks to its model. The trade-off is that Agent Prism has to **trust what the agent reports**.
+Passive ingest works for any agent on any provider, including ones the gateway doesn't support (Copilot, LangChain, custom agents, CI jobs). It needs no change to how the agent talks to its model. The trade-off is that Agent Prism has to trust what the agent reports.
 
 Example: a nightly CI agent finishes reviewing a pull request and posts this:
 
@@ -20,11 +20,9 @@ POST /api/ingest
 
 The run appears on the dashboard within seconds, counted in cost, scores, leaks and Run value like any other run.
 
-Everything below is how passive ingest behaves in the current code.
-
 ## What we have today
 
-Five routes. Four of them write **runs**; the fifth writes **developer session snapshots** from the fleet collector.
+Five routes. Four of them write runs; the fifth writes developer session snapshots from the fleet collector.
 
 | Route | Who sends it | What it expects | Signature check | Writes |
 | --- | --- | --- | --- | --- |
@@ -38,14 +36,14 @@ All five need an Agent Prism key (`acp_…`), so every report lands in the calle
 
 ## What it does
 
-For the four **run** routes, in this order:
+For the four run routes, in this order:
 
 1. **Checks who is calling** (`requireTenant`).
 2. **Checks the signature**, on the Claude and Copilot routes only, when a webhook secret is set.
 3. **Turns the report into a standard run** with the matching *normalizer* (see below). Every field is cleaned and given a safe default.
 4. **Skips duplicates** (`/api/ingest` only).
 5. **Checks the plan**: is the workspace under its monthly run cap and agent cap?
-6. **Checks production certification.** A run marked `environment: "production"` from an agent that isn't certified is **refused**.
+6. **Checks production certification.** A run marked `environment: "production"` from an agent that isn't certified is refused.
 7. **Saves the run** (`upsertTenantRuns`).
 8. **Afterwards:** checks whether the run should revoke the agent's certification, and on some routes writes an audit entry, sends a budget alert and classifies the task.
 
@@ -53,7 +51,7 @@ The fleet route works differently. It's described in [Fleet ingest](#fleet-inges
 
 ## Where the data comes from
 
-Everything comes **from the agent's own report**. Agent Prism doesn't call the provider to check it.
+Everything comes from the agent's own report. Agent Prism doesn't call the provider to check it.
 
 ### Normalizers: one standard run from three report shapes
 
@@ -77,7 +75,7 @@ Each provider names things differently. A normalizer in `src/connectors.js` maps
 | `policyViolations` | `policyViolations`, `policy_alerts` | `guardrailHits` | `policy_alerts` | 0 |
 | `userSatisfaction` | `userSatisfaction`, `user_score` | `feedbackScore` | `user_score` | 4 |
 | `autonomyLevel` | `autonomyLevel`, `autonomy_level` | `autonomyLevel` | `autonomy_level` | 3 |
-| `environment` | `environment` | `environment` | `environment` | **"production"** |
+| `environment` | `environment` | `environment` | `environment` | "production" |
 | `workflow` / `team` | `workflow` / `team` | `flow` / `team` | `workflow` / `team` | "default" / "platform" |
 | `tags` / `breadcrumbs` / `notes` | `tags`, `labels` / `breadcrumbs`, `trace` / `notes`, `summary` | `tags` / `breadcrumbs` / `notes` | `labels` / `trace` / `summary` | empty |
 | `toolManifest`, `humanApprovals` | `toolManifest`, `tool_manifest` / `humanApprovals`, `human_approvals` | same | same | empty |
@@ -92,7 +90,7 @@ Every normalizer also:
 
 ### Signature check (Claude and Copilot routes)
 
-If `CLAUDE_WEBHOOK_SECRET` or `COPILOT_WEBHOOK_SECRET` is set, the route checks an HMAC-SHA256 signature of the **raw** body before parsing it (`verifyHmacSignature` in `src/ingest/verify.js`, using a timing-safe comparison).
+If `CLAUDE_WEBHOOK_SECRET` or `COPILOT_WEBHOOK_SECRET` is set, the route checks an HMAC-SHA256 signature of the raw body before parsing it (`verifyHmacSignature` in `src/ingest/verify.js`, using a timing-safe comparison).
 
 | Route | Signature header | Wrong or missing signature |
 | --- | --- | --- |
@@ -109,7 +107,7 @@ Webhook senders retry when they don't get an answer in time, so the same run can
 - `checkAndSetIdempotencyKey` records the key per workspace. If it's been seen before, the answer is `200 { "status": "duplicate", "runId": … }` and nothing is saved again.
 - Keys are deleted after 24 hours (a job runs every hour).
 
-On the other three run routes, sending the same `id` twice **overwrites** the earlier run instead of adding a second one, because runs are saved by id.
+On the other three run routes, sending the same `id` twice overwrites the earlier run instead of adding a second one, because runs are saved by id.
 
 ### Production certification gate
 
@@ -120,35 +118,35 @@ On the other three run routes, sending the same `id` twice **overwrites** the ea
 - Production and not certified → `403 agent_not_certified`, with the reasons the certification failed and how to certify.
 - Production and the certificate has expired → `403 cert_expired`.
 
-`environment` defaults to `"production"` when it isn't sent, so **an agent that leaves it out is treated as production** and must be certified.
+`environment` defaults to `"production"` when it isn't sent, so an agent that leaves it out is treated as production and must be certified.
 
 ### After the run is saved
 
 | Step | `/api/ingest` | `/claude` | `/copilot` | `/generic` |
 | --- | --- | --- | --- | --- |
-| **Auto-revoke** (`checkAutoRevoke`): a production run using a high-danger or unclassified tool that wasn't there when the agent was certified revokes the certificate and writes an audit entry | ✅ | ✅ | ✅ | ✅ |
-| **Audit log** entry "Telemetry Ingested" | ✅ | ❌ | ❌ | ❌ |
-| **Budget alert** to Slack (`SLACK_WEBHOOK_URL`) when the run cost more than its budget | ✅ | ❌ | ❌ | ❌ |
-| **AI task classification** in the background (`classifyTaskWithLLM`, falls back to the regex classifier), which updates the run's task type | ❌ | ✅ if `messages` sent | ❌ | ✅ if `prompt` sent (a report with only `messages` is classified from empty text) |
+| Auto-revoke (`checkAutoRevoke`): a production run using a high-danger or unclassified tool that wasn't there when the agent was certified revokes the certificate and writes an audit entry | ✅ | ✅ | ✅ | ✅ |
+| Audit log entry "Telemetry Ingested" | ✅ | ❌ | ❌ | ❌ |
+| Budget alert to Slack (`SLACK_WEBHOOK_URL`) when the run cost more than its budget | ✅ | ❌ | ❌ | ❌ |
+| AI task classification in the background (`classifyTaskWithLLM`, falls back to the regex classifier), which updates the run's task type | ❌ | ✅ if `messages` sent | ❌ | ✅ if `prompt` sent (a report with only `messages` is classified from empty text) |
 
 ### Retry queue for failed saves (`/api/ingest` only)
 
 If saving the run fails (for example the database is briefly unavailable), the report isn't lost:
 
-1. The body is put in the **failed-ingest queue** (`saveFailedIngest`), with prompt text and personal data removed first.
+1. The body is put in the failed-ingest queue (`saveFailedIngest`), with prompt text and personal data removed first.
 2. The agent gets `202 { "status": "queued" }`, so it doesn't retry by itself.
 3. Every 5 minutes, up to 20 queued reports are tried again.
-4. A report that keeps failing waits longer each time (1 min, 5 min, 25 min, then 2 hours at most) and is marked **failed** after 5 attempts.
+4. A report that keeps failing waits longer each time (1 min, 5 min, 25 min, then 2 hours at most) and is marked failed after 5 attempts.
 
 ### Fleet ingest
 
-`/api/fleet/ingest` takes a **snapshot** of one developer machine from the fleet collector: its Claude Code sessions, each with *cumulative* token totals.
+`/api/fleet/ingest` takes a snapshot of one developer machine from the fleet collector: its Claude Code sessions, each with *cumulative* token totals.
 
 1. The snapshot is cleaned (`normalizeFleetSnapshot`): at most 500 sessions, 200 processes and 200 ports, numbers clamped. Prompt snippets, full paths and command lines are then removed (`sanitizeFleetSnapshot` in `src/privacy.js`).
-2. Each session is compared with the **previous** snapshot from the same machine. Only the **increase** in tokens counts. Otherwise every 30-second push would count the whole session again.
+2. Each session is compared with the previous snapshot from the same machine. Only the increase in tokens counts. Otherwise every 30-second push would count the whole session again.
 3. A session seen for the first time adds nothing. Its totals may cover days before tracking started, so they become the starting point and only later growth is counted.
 4. Cost of the increase = `computeClaudeCost` with the session's model and `config/pricing.json`. This is the one ingest path where Agent Prism calculates the cost itself.
-5. The increase is added to the developer's **daily usage** for today (`upsertDailyUsage`) and to a per-model breakdown (`upsertDailyUsageByModel`). This feeds the Live Sessions view and AI Consumption History.
+5. The increase is added to the developer's daily usage for today (`upsertDailyUsage`) and to a per-model breakdown (`upsertDailyUsageByModel`). This feeds the Live Sessions view and AI Consumption History.
 6. The snapshot replaces the machine's previous one.
 
 The fleet route has no plan check, no certification gate and no duplicate check, and it writes no runs.
@@ -192,11 +190,11 @@ The fleet route has no plan check, no certification gate and no duplicate check,
 
 ## Dashboard / UI
 
-Passive ingest has no page of its own. Ingested runs show up everywhere runs do: Overview, Runs, cost leaks, the control score, Run value, the savings report and agent certification. Fleet snapshots feed **Live Sessions** and **AI Consumption History**.
+Passive ingest has no page of its own. Ingested runs show up everywhere runs do: Overview, Runs, cost leaks, the control score, Run value, the savings report and agent certification. Fleet snapshots feed Live Sessions and AI Consumption History.
 
-On the Admin tab, the **Connectors** catalog shows each webhook connector's ingest URL (for example `/api/ingest/copilot` on the GitHub Copilot card).
+On the Admin tab, the Connectors catalog shows each webhook connector's ingest URL (for example `/api/ingest/copilot` on the GitHub Copilot card).
 
-## Changes by file
+## Code by file
 
 Where the ingest code lives:
 
@@ -240,7 +238,7 @@ Not tested yet, and worth adding:
 
 Ingest issues I found:
 
-1. **Cost is whatever the agent reports.** Unlike the gateway and fleet ingest, the run routes don't calculate cost from tokens and `config/pricing.json`. An agent that sends tokens but no cost is recorded at **$0**, and a wrong cost is stored as sent.
-2. **A refused run can be wrongly marked as a duplicate.** On `/api/ingest` the duplicate key is recorded **before** the plan and certification checks. If a run is refused (402 or 403) and sent again after the agent is certified or the plan upgraded, within 24 hours, it gets `duplicate` back and is **never saved**.
+1. **Cost is whatever the agent reports.** Unlike the gateway and fleet ingest, the run routes don't calculate cost from tokens and `config/pricing.json`. An agent that sends tokens but no cost is recorded at $0, and a wrong cost is stored as sent.
+2. **A refused run can be wrongly marked as a duplicate.** On `/api/ingest` the duplicate key is recorded before the plan and certification checks. If a run is refused (402 or 403) and sent again after the agent is certified or the plan upgraded, within 24 hours, it gets `duplicate` back and is never saved.
 3. **The run routes don't behave the same.** Only `/api/ingest` has duplicate keys, the retry queue, the audit entry and budget alerts. On the other three, a failed save returns an error and the report is lost, unless the sender retries.
 4. **Signatures are optional and shared.** The Claude and Copilot secrets are one value per server, not per workspace, and with no secret set anyone with a valid key can post. `/api/ingest` and `/api/ingest/generic` have no signature check at all; they rely on the Agent Prism key alone.

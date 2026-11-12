@@ -3,13 +3,11 @@
 ## Introduction
 
 - **Audit log.** A per-workspace record of who did what, when and from where: sign-ins, user and role changes, API keys, connectors, certification and promotions, ingest, settings, erasure and so on. Each entry is chained to the one before it with a SHA-256 hash, so a deleted or edited entry can be spotted. Admins can view it and download it as CSV.
-- **GDPR.** An owner or admin can **export** the workspace's data as JSON. An owner can **erase** the workspace's telemetry: runs, prompt captures, sessions, fleet data, usage, Copilot data and so on.
+- **GDPR.** An owner or admin can export the workspace's data as JSON. An owner can erase the workspace's telemetry: runs, prompt captures, sessions, fleet data, usage, Copilot data and so on.
 - **SIEM delivery.** Each audit entry is also posted, as it happens, to the customer's SIEM (Splunk, Sentinel, Datadog and so on), optionally signed with HMAC-SHA256.
 - **Privacy defaults.** IP addresses in the audit log are shortened by default, and data that could be personal is only collected when switched on (see `docs/PRIVACY.md`).
 
 Example: Bob (admin) approves the promotion of `invoice-bot`. The audit log gets `Agent Promotion Approved`, with actor `bob@acme.com`, resource `invoice-bot`, details `{ promotionId, requestedBy }` and IP `203.0.113.0` (last part zeroed). Its `prevHash` is the previous entry's hash. Within a second, Acme's Splunk receives `{ type: "agent_prism.audit_log", deliveredAt, event: {…} }` with an `X-Agent-Prism-Signature: sha256=…` header.
-
-All of this describes the current code.
 
 ## What we have today
 
@@ -26,10 +24,7 @@ All of this describes the current code.
 
 ## What it does
 
-- Gives security and compliance teams a trail of every important action, in Agent Prism and in their own SIEM.
-- Makes tampering visible: each entry's hash includes the previous entry's hash.
-- Lets a customer take all their data out (portability) and remove their telemetry (erasure).
-- Keeps less personal data by default: shortened IPs, no prompt text, no fleet command lines.
+Security and compliance teams get a trail of every important action, both in Agent Prism and in their own SIEM. Each entry's hash includes the previous entry's hash, so tampering shows. Customers can take all their data out (portability) or remove their telemetry (erasure). By default it keeps less personal data: IPs are shortened, and there's no prompt text and no fleet command lines.
 
 ## Where the data comes from
 
@@ -57,13 +52,13 @@ All of this describes the current code.
 2. The backend reads the workspace's latest hash. The first entry uses 64 zeros.
 3. `hash = SHA-256(prevHash : id : workspace : actor : action : resource : timestamp)`.
 4. The entry is saved with `hash` and `prevHash`.
-5. SIEM delivery starts **without waiting** (section 4).
+5. SIEM delivery starts without waiting (section 4).
 
-On Postgres, entries are kept until the workspace is deleted. On the file store, only the **newest 500 entries across the whole installation** are kept.
+On Postgres, entries are kept until the workspace is deleted. On the file store, only the newest 500 entries across the whole installation are kept.
 
 ### 2. Reading and exporting
 
-- `GET /api/audit` (`audit.view`, admin) returns the latest **100** entries, newest first. The file store returns all of its entries for the workspace.
+- `GET /api/audit` (`audit.view`, admin) returns the latest 100 entries, newest first. The file store returns all of its entries for the workspace.
 - `GET /api/audit/export` (`audit.view`) returns the same entries as CSV, with columns timestamp, actor, action, resource, ip, details, hash and prevHash. Cells that start with `=`, `+`, `-`, `@`, a tab or a carriage return are neutralised, so a spreadsheet can't run them.
 
 ### 3. GDPR
@@ -93,7 +88,7 @@ For every audit entry:
 2. Decrypt its URL and secret with the workspace's key. If the key is sealed or missing, skip without a word.
 3. Build the body `{ "type": "agent_prism.audit_log", "deliveredAt": "…", "event": { …the audit entry… } }`.
 4. With a secret: add `X-Agent-Prism-Signature: sha256=<HMAC-SHA256 of the body>`.
-5. Check again that the URL resolves to a public address (protection against DNS rebinding). POST with a **5-second** timeout (`SIEM_WEBHOOK_TIMEOUT_MS`), and refuse redirects.
+5. Check again that the URL resolves to a public address (protection against DNS rebinding). POST with a 5-second timeout (`SIEM_WEBHOOK_TIMEOUT_MS`), and refuse redirects.
 6. On failure, write a line to the server's error output. No retry.
 
 The SIEM can check the signature by computing HMAC-SHA256 over the raw body with the shared secret and comparing it with the header.
@@ -111,11 +106,11 @@ The SIEM can check the signature by computing HMAC-SHA256 over the raw body with
 
 ## Dashboard / UI
 
-- **Admin → Audit log.** A table of the latest entries (time, actor, action, resource, IP) and **Export CSV**.
+- **Admin → Audit log.** A table of the latest entries (time, actor, action, resource, IP) and Export CSV.
 - **Connectors → SIEM webhook.** "Stream every audit log event (certifications, promotion approvals, SCIM provisioning, connector changes) to your SIEM in real time." It has a destination URL and an optional signing secret.
 - GDPR export and erasure are API-only (no buttons). The dashboard's reset action calls `POST /api/reset`.
 
-## Changes by file
+## Code by file
 
 The audit, export and SIEM code is in:
 
@@ -134,7 +129,7 @@ The audit, export and SIEM code is in:
 
 What's tested today:
 
-- `test/privacy.test.js`: prompt capture and the classifier are off by default; audit IPs are shortened by default; fleet snapshots lose prompt snippets, paths and command lines; failed-ingest copies keep metrics but drop prompt text; `scrubPiiDeep` reaches nested content; the browser and server only contact expected hosts; no tracking SDKs; personal data sent to ingest and fleet never reaches disk; the audit log stores a shortened IP; the dashboard CSP blocks inline and third-party scripts; **GDPR erasure removes runs and every per-person telemetry record**.
+- `test/privacy.test.js`: prompt capture and the classifier are off by default; audit IPs are shortened by default; fleet snapshots lose prompt snippets, paths and command lines; failed-ingest copies keep metrics but drop prompt text; `scrubPiiDeep` reaches nested content; the browser and server only contact expected hosts; no tracking SDKs; personal data sent to ingest and fleet never reaches disk; the audit log stores a shortened IP; the dashboard CSP blocks inline and third-party scripts; GDPR erasure removes runs and every per-person telemetry record.
 - `test/user-management.test.js`: audit CSV export neutralises spreadsheet formulas.
 - BDD: `features/client_ip_server.feature`: behind a trusted proxy the audit trail records the forwarded client IP; otherwise a spoofed `X-Forwarded-For` is ignored.
 
@@ -150,5 +145,5 @@ Where audit, GDPR and SIEM fall short today:
 
 1. **The hash chain proves less than it suggests.** `details` and `ip` aren't part of the hash, so they can be edited without breaking it. Nothing ever checks the chain: there's no verify route or tool. Two entries written at the same moment can both use the same previous hash, which forks the chain, because the latest hash is read without a lock.
 2. **SIEM delivery can lose events.** Delivery is attempted once, with no retry and no queue. A failure only writes a line to the server log, so the customer can't see that events are missing. If the workspace's key is sealed, delivery stops without a word. The signature has no timestamp, so a captured delivery can be replayed. Only audit events are sent, not cost alerts or leaks.
-3. **Erasure covers the whole workspace's telemetry, not one person.** There's no way to export or erase a single data subject. It also leaves behind **users** (names and emails), the **audit log** (actor emails, shortened IPs, resources), connectors, certifications and promotions, ML weights, savings settings and dashboard sessions. Whether that's acceptable depends on the customer's legal basis; it isn't documented in the product.
+3. **Erasure covers the whole workspace's telemetry, not one person.** There's no way to export or erase a single data subject. It also leaves behind users (names and emails), the audit log (actor emails, shortened IPs, resources), connectors, certifications and promotions, ML weights, savings settings and dashboard sessions. Whether that's acceptable depends on the customer's legal basis; it isn't documented in the product.
 4. **Export and erasure don't match.** Erasure deletes sessions, fleet snapshots, daily usage, team assignments and Copilot data, but the export includes none of them. The export only reaches the latest 10,000 runs, so older runs can't be exported even though they exist. Prompt captures use the same page settings as runs.

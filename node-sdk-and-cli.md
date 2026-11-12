@@ -2,7 +2,7 @@
 
 ## Introduction
 
-Agent Prism includes a small **Node.js SDK** (`src/sdk/index.js`) and a **CLI** (`bin/cli.js`) so a developer can send agent runs without writing HTTP calls themselves.
+Agent Prism includes a small Node.js SDK (`src/sdk/index.js`) and a CLI (`bin/cli.js`) so a developer can send agent runs without writing HTTP calls themselves.
 
 - **CLI.** `agent-prism login` asks for a workspace API key (`acp_…`) and saves it with an endpoint to `~/.agent-prism/credentials.json`. `agent-prism logout` deletes that file.
 - **SDK.** `new AgentPrism()` finds the API key (from options, environment variables or the CLI file). It exchanges the key for a 1-hour access token at `/api/oauth/token` and reuses it. Its one method, `logRun(payload)`, sends a run to `POST /api/ingest`.
@@ -24,8 +24,6 @@ await prism.logRun({
 
 The first call gets an access token, and later calls within the hour reuse it. The run then goes through normal passive ingest: it's normalised, tool danger is classified, the plan and certification checks run, and it's saved (see [passive ingest](passive-ingest.md)).
 
-Both are described as they are in the repo today.
-
 ## What we have today
 
 | Piece | What it does |
@@ -37,9 +35,7 @@ Both are described as they are in the repo today.
 
 ## What it does
 
-- Lets a developer report agent runs with two lines of code.
-- Keeps the API key out of code and `.env` files by storing it once on the developer's machine.
-- Uses a short-lived access token on the wire, not the API key, for each run.
+A developer can report agent runs with two lines of code. The API key is stored once on the developer's machine, so it stays out of code and `.env` files, and each run is sent with a short-lived access token instead of the API key itself.
 
 ## Where the data comes from
 
@@ -61,7 +57,7 @@ If no API key is found, the constructor throws: "Not authenticated. Run `npx age
 
 ### 1. Getting a token (`_authenticate`)
 
-1. If there's an access token that expires **more than 5 minutes** from now, use it.
+1. If there's an access token that expires more than 5 minutes from now, use it.
 2. Otherwise send `POST {endpoint}/api/oauth/token` with `{ client_id, client_secret, grant_type: "client_credentials" }`.
 3. On error, throw "Agent Prism Authentication Failed: <response text>".
 4. Store `access_token` and its expiry (`expires_in` × 1000 from now). The `refresh_token` in the response isn't used.
@@ -94,9 +90,9 @@ If no API key is found, the constructor throws: "Not authenticated. Run `npx age
 
 ## Dashboard / UI
 
-None. The developer copies an API key from **Admin → API keys** and pastes it into `agent-prism login`.
+None. The developer copies an API key from Admin → API keys and pastes it into `agent-prism login`.
 
-## Changes by file
+## Code by file
 
 The SDK and CLI code:
 
@@ -122,6 +118,6 @@ Worth adding:
 
 Problems a new SDK user is likely to hit:
 
-1. **The first `logRun` fails unless the run says `environment`.** Ingest treats a run without `environment` as **production**, and an agent without a production certificate is refused with `403 agent_not_certified` (see [agent certification](agent-certification.md)). A new user following the simple example gets an error until they add `environment: "staging"` or certify the agent. The SDK doesn't mention this.
+1. **The first `logRun` fails unless the run says `environment`.** Ingest treats a run without `environment` as production, and an agent without a production certificate is refused with `403 agent_not_certified` (see [agent certification](agent-certification.md)). A new user following the simple example gets an error until they add `environment: "staging"` or certify the agent. The SDK doesn't mention this.
 2. **The CLI sends telemetry to the hosted demo by default.** Without `AGENT_PRISM_URL`, `login` saves `https://agent-prism.onrender.com` as the endpoint and tells the user to get their key from that site. A customer running their own installation who doesn't set the variable sends runs, or fails to authenticate, against the demo server. The SDK's own default is `http://127.0.0.1:3000`, which is different.
 3. **No timeout, retry or idempotency.** `fetch` has no timeout, so an unreachable server hangs the caller. Nothing is retried on network errors, `429` or `5xx`. No `Idempotency-Key` or run id is generated, so a caller that retries by itself can store the same run twice unless it sets `id`.

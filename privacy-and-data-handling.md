@@ -8,17 +8,15 @@ Agent Prism's privacy design rests on three rules:
 2. **Make everything extra opt-in, in one place.** `src/privacy.js` holds every switch that collects more: prompt capture, the LLM task classifier, full IPs, fleet details. Each one is off unless an operator turns it on.
 3. **Check the promises with tests.** `test/privacy.test.js` checks the defaults, scans the source for unexpected outbound hosts, and runs an end-to-end "canary" test. That test sends an email, a phone number, prompt text, a home path and a secret, then searches every byte written to disk.
 
-The customer-facing statement is [docs/PRIVACY.md](../PRIVACY.md): what's stored, what's never stored, outbound calls, opt-in features, how to verify, and answers for security questionnaires. This document is the design view: how those promises are enforced, and **where PRIVACY.md and the code no longer agree**.
+The customer-facing statement is [docs/PRIVACY.md](../PRIVACY.md): what's stored, what's never stored, outbound calls, opt-in features, how to verify, and answers for security questionnaires. This document is the design view: how those promises are enforced, and where PRIVACY.md and the code no longer agree.
 
 Example: an agent sends `POST /api/ingest` with `prompt: "Email jane@acme.com about invoice 4411"` and `notes: "ran ok"`. The prompt isn't stored; only metrics are. If the save fails and the run goes to the retry queue, `prompt` and `messages` are removed and the rest is scrubbed first. With `LLM_CLASSIFIER_ENABLED=true`, up to 800 characters are sent to the organisation's AI provider as `Email [EMAIL] about invoice 4411` to label the task. `notes` is stored as sent.
-
-It describes the controls as they exist in the code today.
 
 ## What we have today
 
 | Control | Where | What it does |
 | --- | --- | --- |
-| Prompt capture switch | `isPromptCaptureEnabled()` (`PROMPT_CAPTURE_ENABLED=true`) **and** a plan with `promptCapture` (Pro and above) | Gateway prompts and responses are stored only when both are on. Sampling with `PROMPT_CAPTURE_SAMPLING_RATE`; scrubbed unless `PROMPT_CAPTURE_SCRUB_PII=false` |
+| Prompt capture switch | `isPromptCaptureEnabled()` (`PROMPT_CAPTURE_ENABLED=true`) and a plan with `promptCapture` (Pro and above) | Gateway prompts and responses are stored only when both are on. Sampling with `PROMPT_CAPTURE_SAMPLING_RATE`; scrubbed unless `PROMPT_CAPTURE_SCRUB_PII=false` |
 | Classifier switch | `isLlmClassifierEnabled()` (`LLM_CLASSIFIER_ENABLED=true` and a provider configured), read at startup | Sends scrubbed prompt text to the AI provider (see [machine learning](machine-learning.md)) |
 | Audit IP | `auditIp()` in `saas-store.logAuditEvent`, the single entry point | `truncated` (default), `full` or `none` |
 | Fleet trimming | `sanitizeFleetSnapshot()` | Removes `summary`, shortens `cwd` to the folder name, removes `cmd`, unless `FLEET_STORE_SESSION_DETAILS=true` |
@@ -32,9 +30,7 @@ It describes the controls as they exist in the code today.
 
 ## What it does
 
-- Lets a customer's security team approve Agent Prism with the defaults, without reading the code.
-- Puts every "collect more" decision in operator configuration, not in the code.
-- Gives customers a way to check the claims themselves (`node --test test/privacy.test.js`).
+A customer's security team can approve Agent Prism on its defaults without reading the code. Every decision to collect more lives in operator configuration, not in the code, and customers can check the claims themselves with `node --test test/privacy.test.js`.
 
 ## Where the data comes from
 
@@ -43,7 +39,7 @@ Everything the product collects, and where it's handled:
 | Data | Entry point | Privacy handling |
 | --- | --- | --- |
 | Run metrics | `/api/ingest*`, gateway | Only normalised fields kept; `prompt`/`messages` not stored |
-| Run free text: `notes`, `tags`, `breadcrumbs` | Ingest | **Stored as sent**, not scrubbed |
+| Run free text: `notes`, `tags`, `breadcrumbs` | Ingest | Stored as sent, not scrubbed |
 | Gateway prompts and responses | `/v1/*` | Forwarded; stored only with prompt capture |
 | Fleet snapshots | `/api/fleet/ingest` | Trimmed; developer id, hostname, folder name and git branch kept |
 | Users, sessions | Sign-in, SCIM, SSO | Email, name, role, password hash; tokens hashed |
@@ -62,7 +58,7 @@ The end-to-end canary test starts a real server on an empty data folder. It post
 | Destination | When | What |
 | --- | --- | --- |
 | Anthropic, OpenAI, the workspace's Azure endpoint | Gateway calls | The agent's own request |
-| The installation's AI provider | AI Advisor (each dashboard load), Prompt Advisor (dashboard tab), classifier (opt-in) | Telemetry summary; prompt text (**not** scrubbed for the Prompt Advisor); scrubbed prompt text (classifier) |
+| The installation's AI provider | AI Advisor (each dashboard load), Prompt Advisor (dashboard tab), classifier (opt-in) | Telemetry summary; prompt text (not scrubbed for the Prompt Advisor); scrubbed prompt text (classifier) |
 | `api.github.com` | Copilot connector with a token | The token and org; reads seats and usage |
 | The workspace's SIEM | SIEM connector | Audit entries |
 | `CB_ALERT_WEBHOOK_URL`, `OIDC_ISSUER` | Operator configured | Circuit alerts, sign-in |
@@ -75,7 +71,7 @@ There's no privacy API of its own. The related routes are `GET /api/gdpr/export`
 
 There's no privacy screen. Prompt capture and the other switches are environment settings. The plan page shows whether prompt capture is included in the plan.
 
-## Changes by file
+## Code by file
 
 Privacy-related code:
 
@@ -94,7 +90,7 @@ Privacy-related code:
 
 `test/privacy.test.js` is described in [docs/PRIVACY.md → How to verify](../PRIVACY.md#how-to-verify-this-yourself).
 
-Not covered yet, and worth adding:
+Not tested yet, and worth adding:
 
 - The Prompt Advisor's outbound text, which isn't scrubbed today (see mismatch 1 below).
 - `bin/cli.js` and `src/sdk/` in the outbound-host scan (see mismatch 4).
@@ -104,14 +100,14 @@ Not covered yet, and worth adding:
 
 These need to be fixed in the code or in the statement before PRIVACY.md is shown to customers.
 
-1. **"Prompt Advisor: a prompt the user chose to submit."** In fact the dashboard's Prompt Advisor tab sends text from a page of recent runs **automatically** (breadcrumbs, notes or captured prompts), and `/api/advisor` sends it **without scrubbing**. The statement that "the optional classifier scrubs PII" is true, but the Prompt Advisor doesn't (see [AI Advisor and Prompt Advisor](ai-advisor-and-prompt-advisor.md)).
-2. **"AI Advisor: aggregate metrics only… no prompt text."** It also sends the workspace's id and name, workflow names and details of the last 12 runs, and it runs on **every dashboard load**, not only when "someone opens the AI Advisor panel".
+1. **"Prompt Advisor: a prompt the user chose to submit."** In fact the dashboard's Prompt Advisor tab sends text from a page of recent runs automatically (breadcrumbs, notes or captured prompts), and `/api/advisor` sends it without scrubbing. The statement that "the optional classifier scrubs PII" is true, but the Prompt Advisor doesn't (see [AI Advisor and Prompt Advisor](ai-advisor-and-prompt-advisor.md)).
+2. **"AI Advisor: aggregate metrics only… no prompt text."** It also sends the workspace's id and name, workflow names and details of the last 12 runs, and it runs on every dashboard load, not only when "someone opens the AI Advisor panel".
 3. **"LLM_CLASSIFIER_ENABLED (+ ANTHROPIC_API_KEY) sends prompt text to Anthropic."** That's out of date. The classifier uses whichever `AI_PROVIDER` is configured, and an Anthropic key alone doesn't turn it on.
 4. **"Does the product send data to the vendor? No."** `agent-prism login` saves the vendor's hosted demo, `https://agent-prism.onrender.com`, as the endpoint unless `AGENT_PRISM_URL` is set. SDK users who don't set it send their runs to the vendor-hosted server (see [SDK and CLI](node-sdk-and-cli.md)). The outbound-host test doesn't catch this, because it skips `src/sdk/` and doesn't scan `bin/`. The test also lists `agent-prism.onrender.com` as an allowed host, with the comment "never requested", which isn't true for the CLI.
-5. **"Row-level security enforces tenant isolation in the database too."** Row-level security is only **forced** on some tables, and many queries use the pool directly (see [storage backends](storage-backends-and-migrations.md)). Scoping in the code is the real protection.
+5. **"Row-level security enforces tenant isolation in the database too."** Row-level security is only forced on some tables, and many queries use the pool directly (see [storage backends](storage-backends-and-migrations.md)). Scoping in the code is the real protection.
 6. **"Audit trail… hash-chained."** True, but `details` and `ip` aren't part of the hash, and nothing ever checks the chain (see [audit, GDPR and SIEM](audit-gdpr-and-siem.md)).
 7. **Export.** PRIVACY.md says the export covers "runs". It covers only the latest 10,000, and leaves out sessions, fleet snapshots, usage rollups, team assignments and Copilot data, which erasure does delete.
-8. **"CSP… protects the stored API key from injected content."** Scripts can't be injected, but one place in the Prompt Advisor shows run text as **HTML** without escaping, so injected markup still appears (see [AI Advisor and Prompt Advisor](ai-advisor-and-prompt-advisor.md)).
+8. **"CSP… protects the stored API key from injected content."** Scripts can't be injected, but one place in the Prompt Advisor shows run text as HTML without escaping, so injected markup still appears (see [AI Advisor and Prompt Advisor](ai-advisor-and-prompt-advisor.md)).
 
 ## Known limitations
 

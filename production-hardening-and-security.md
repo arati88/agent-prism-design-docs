@@ -2,7 +2,7 @@
 
 ## Introduction
 
-Agent Prism started as a proof of concept, with no input checks, no rate limits, a path-traversal hole in the static file server, no security headers and a "View Sales Story" demo link. **Production hardening** added the defensive layers that every request goes through, using only Node's standard library:
+Agent Prism started as a proof of concept, with no input checks, no rate limits, a path-traversal hole in the static file server, no security headers and a "View Sales Story" demo link. Production hardening added the defensive layers that every request goes through, using only Node's standard library:
 
 | Layer | What it does |
 | --- | --- |
@@ -19,11 +19,9 @@ Agent Prism started as a proof of concept, with no input checks, no rate limits,
 | Bootstrap lock | `POST /api/bootstrap` works once (`409` afterwards) and is limited to 5 attempts an hour per IP |
 | Docker | Non-root `node:24-alpine`, `npm ci` from the lockfile, health check |
 
-This document replaces the openspec change `openspec/changes/production-hardening-and-security/` in our format. It describes what's in the code **today** and where that differs from the plan. Startup, shutdown, logs and health checks are covered in more detail in [health, metrics and resilience](health-metrics-and-resilience.md).
+This document replaces the openspec change `openspec/changes/production-hardening-and-security/` in our format. It describes what's in the code today and where that differs from the plan. Startup, shutdown, logs and health checks are covered in more detail in [health, metrics and resilience](health-metrics-and-resilience.md).
 
 Example: a client sends `POST /api/sessions` with `Content-Type: text/plain` and gets `415`. It resends as JSON without `platform` and gets `422 { fields: [{ field: "platform", message: … }] }`. A browser on `https://evil.example` sends a preflight and gets `403 CORS origin not allowed`. `GET /..%2f..%2fetc/passwd` gets `403`. Every one of these responses carries `X-Content-Type-Options: nosniff` and the CSP.
-
-This describes the hardening that's in the code today.
 
 ## What we have today
 
@@ -40,10 +38,7 @@ This describes the hardening that's in the code today.
 
 ## What it does
 
-- Stops malformed, oversized or hostile input before it reaches business logic.
-- Stops the browser running injected script, or loading anything from other origins.
-- Limits how hard any one caller can push the server.
-- Refuses to run in production with known-unsafe settings.
+Malformed, oversized or hostile input is stopped before it reaches the business logic. The browser won't run injected script or load anything from other origins, no single caller can push the server too hard, and production refuses to start with settings that are known to be unsafe.
 
 ## Where the data comes from
 
@@ -102,7 +97,7 @@ Each limiter counts in a fixed 60-second window per key: the first request start
 | Gateway key | Key | Requests and tokens per minute (plan or settings) |
 | Sign-in, invite, OAuth token | IP | 20 a minute |
 | Bootstrap | IP | 5 an hour |
-| Wrong admin secret | IP | 10 failures a minute, checked **before** the secret is compared |
+| Wrong admin secret | IP | 10 failures a minute, checked before the secret is compared |
 
 ### 5. Static files
 
@@ -113,7 +108,7 @@ Each limiter counts in a fixed 60-second window per key: the first request start
 | Plan (openspec) | Today |
 | --- | --- |
 | Middleware pipeline `(req, res, next)` | Helper functions called in order inside the one handler; no pipeline object |
-| Sliding window, default 300/min for ingest, 60 for metrics | Fixed window per key; the workspace limit comes from the **plan**; separate per-user, per-key, sign-in and admin-failure limiters |
+| Sliding window, default 300/min for ingest, 60 for metrics | Fixed window per key; the workspace limit comes from the plan; separate per-user, per-key, sign-in and admin-failure limiters |
 | CSP with Google Fonts, `unsafe-inline` to start | No third-party origins at all (self-hosted fonts); scripts never inline; nonce for page scripts |
 | `Retry-After: 60` | Seconds left in the window |
 | Startup checks: admin secret, dashboard credentials, `NODE_ENV` | Also `ENCRYPTION_KEY`, `JWT_SECRET`, CORS `*`, database TLS, pool size, webhook secrets (see [health and resilience](health-metrics-and-resilience.md)) |
@@ -129,7 +124,7 @@ These aren't routes of their own. Every route can return `413 payload_too_large`
 
 None. The dashboard runs under the CSP above.
 
-## Changes by file
+## Code by file
 
 Hardening code, by file:
 

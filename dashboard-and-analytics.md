@@ -23,9 +23,9 @@ retries  82 × 0.10 =  8.2   (100 − 1 × 18)
 control score = 84.45 → 84 → "Stable"
 ```
 
-It also cost more than its budget, so it shows on the Cost Leak Radar as a **Budget breach**.
+It also cost more than its budget, so it shows on the Cost Leak Radar as a Budget breach.
 
-This is how the dashboard works in the code right now. The machine-learning models it can use (logistic regression and isolation forest) have their own document. ROI and the savings report are covered separately.
+The machine-learning models it can use (logistic regression and isolation forest) are described in [machine learning](machine-learning.md). ROI and the savings report are covered separately.
 
 ## What we have today
 
@@ -34,21 +34,18 @@ This is how the dashboard works in the code right now. The machine-learning mode
 | `src/scoring.js` | `computeControlScoreFixed`, `computeControlScore` (uses the ML model when it's ready), `explainScore`, `classifyHealth`, `summarizeStatus`, `average` |
 | `src/store.js` | `buildDashboardSnapshot`, `queryCostLeaks`, `detectCostLeaks`, `detectModelMismatches`, `buildTokenEfficiency` (Token Coach), `buildMLAnalytics` (trend, anomalies, forecast, clusters) |
 | `server.js` | `GET /api/dashboard` (`cachedDashboard`, `buildDashboardPayload`), `GET /api/leaks`, `GET /api/runs` |
-| `getRunTotals` (both stores) | Headline totals counted over **every** run |
+| `getRunTotals` (both stores) | Headline totals counted over every run |
 | `public/app.js` | Overview, Token Coach, provider scorecard, Cost Leak Radar, agent panels, activity feed |
 
 ## What it does
 
-- Gives every run, agent, workflow and provider one comparable score.
-- Shows headline numbers: total runs, success rate, total cost, budget used, average latency, average control score, average satisfaction and projected monthly cost.
-- Finds the runs where money is leaking and says what to do about each one.
-- Tells the team how to spend fewer tokens, with an estimated saving for each suggestion.
-- Ranks providers, so a buyer can see which one gives the best mix of reliability, quality, cost and speed.
-- Shows whether cost is rising, falling or stable, and flags runs with unusual token counts.
+Every run, agent, workflow and provider gets one score that can be compared. Across the top it shows total runs, success rate, total cost, budget used, average latency, average control score, average satisfaction and projected monthly cost.
+
+Below that it points out the runs where money is leaking and what to do about each one, suggests how to spend fewer tokens (with an estimated saving for each idea), and ranks providers on reliability, quality, cost and speed. It also shows whether cost is going up, down or holding steady, and flags runs with unusual token counts.
 
 ## Where the data comes from
 
-Everything is worked out from the workspace's **runs** (see [passive ingest](passive-ingest.md) and [gateway proxy](gateway-proxy.md)). The run fields that matter:
+Everything is worked out from the workspace's runs (see [passive ingest](passive-ingest.md) and [gateway proxy](gateway-proxy.md)). The run fields that matter:
 
 | Field | Used for |
 | --- | --- |
@@ -65,8 +62,8 @@ Everything is worked out from the workspace's **runs** (see [passive ingest](pas
 
 **Two sets of runs are used:**
 
-- **Headline totals** (total runs, success rate, total cost, budget used, average latency) are counted by the database over **all** runs (`getRunTotals`).
-- **Everything else** (scores, leaks, Token Coach, comparisons, trend) is worked out from the **most recent 10,000 runs** (`MAX_RUNS_PER_QUERY`). The response says how many runs were used in `sample.runsAnalyzed`.
+- **Headline totals** (total runs, success rate, total cost, budget used, average latency) are counted by the database over all runs (`getRunTotals`).
+- **Everything else** (scores, leaks, Token Coach, comparisons, trend) is worked out from the most recent 10,000 runs (`MAX_RUNS_PER_QUERY`). The response says how many runs were used in `sample.runsAnalyzed`.
 
 ## How it works
 
@@ -104,13 +101,13 @@ Health label:
 
 ### 3. Cost leaks
 
-A run is a leak if **any** of these are true:
+A run is a leak if any of these are true:
 
 | Rule | Condition |
 | --- | --- |
 | Over budget | cost > budget |
-| Retry heavy | 3 or more retries **and** cost > $1 |
-| Low value | satisfaction 2 or less **and** cost > $1.50 |
+| Retry heavy | 3 or more retries and cost > $1 |
+| Low value | satisfaction 2 or less and cost > $1.50 |
 | Statistical anomaly | The workspace's isolation forest flags the run as unusual (only once it has been trained) |
 
 Each leak gets a type and a recommendation, checked in this order:
@@ -126,8 +123,8 @@ Each leak also records `detectionMethod` (`threshold` or `isolation_forest`) and
 
 There are two versions:
 
-- `queryCostLeaks`, used by the dashboard and the ROI summary, returns **every** leak each time.
-- `detectCostLeaks`, used by `GET /api/leaks`, is an **alert feed**. Each run is returned only once per hour (`LEAK_SUPPRESS_MS`, default 3,600,000 ms), so the same leak doesn't alert twice.
+- `queryCostLeaks`, used by the dashboard and the ROI summary, returns every leak each time.
+- `detectCostLeaks`, used by `GET /api/leaks`, is an alert feed. Each run is returned only once per hour (`LEAK_SUPPRESS_MS`, default 3,600,000 ms), so the same leak doesn't alert twice.
 
 ### 4. Provider comparison
 
@@ -154,7 +151,7 @@ Only runs with tokens count here.
 | Retry waste tokens | For each run: tokens × retries ÷ (retries + 1) |
 | Waste % | Retry waste ÷ total tokens |
 | Cost per 1k tokens | Cost ÷ tokens × 1,000 |
-| Projected monthly cost | Cost ÷ runs × (runs × 30). This always works out to **total cost × 30** (see limitation 1) |
+| Projected monthly cost | Cost ÷ runs × (runs × 30). This always works out to total cost × 30 (see limitation 1) |
 | Efficiency score | 100, minus 25 or 12 for a high input mix (above 70% / 65%), minus 20 or 10 for a high output mix (above 45% / 40%), minus 25 or 12 for waste (above 10% / 5%), and minus 20 or 10 when the top agent averages more than 15,000 / 8,000 tokens a run |
 
 Suggestions are made in this order, and at most 5 are shown. Each has a diagnosis, what to change, how to test it and a target:
@@ -176,7 +173,7 @@ Savings are turned into dollars at the workspace's average cost per 1,000 tokens
 This needs at least 3 runs with tokens. Runs are put in time order.
 
 - **Trend.** A straight line is fitted to cost per run. A slope above +$0.0005 a run is "rising", below −$0.0005 is "falling", and anything else is "stable". `costR2` says how well the line fits.
-- **Token anomalies.** A run is flagged when its token count is more than **2 standard deviations** from the average (`ANOMALY_ZSCORE_THRESHOLD`). The top 5 are listed.
+- **Token anomalies.** A run is flagged when its token count is more than 2 standard deviations from the average (`ANOMALY_ZSCORE_THRESHOLD`). The top 5 are listed.
 - **Burn timeline.** Tokens, cost, a 3-run moving average and the trend line for each run, cut down to at most 400 points for the chart. A point keeps its anomaly flag when points are merged.
 - **Agent clusters.** Agents are ranked by average tokens a run. The lowest third are "Efficient", the middle third "Moderate" and the top third "Wasteful".
 - **30-day forecast.** The trend line's cost for the run 30 places after the latest one, × 30.
@@ -192,7 +189,7 @@ This needs at least 3 runs with tokens. Runs are put in time order.
 
 ### 9. Caching
 
-The dashboard is built once and reused for **5 seconds** for each workspace, and requests that arrive together share the same build. New runs appear within 5 seconds. The cache is per server process.
+The dashboard is built once and reused for 5 seconds for each workspace, and requests that arrive together share the same build. New runs appear within 5 seconds. The cache is per server process.
 
 ## API
 
@@ -226,7 +223,7 @@ The dashboard is built once and reused for **5 seconds** for each workspace, and
 - **Token Coach.** Efficiency score, input and output mix, retry waste, cost trend arrow, anomaly count, burn chart, top agents, workflow hotspots and the suggestion cards.
 - **Activity.** The event feed and paged recent runs.
 
-## Changes by file
+## Code by file
 
 Files behind the dashboard:
 

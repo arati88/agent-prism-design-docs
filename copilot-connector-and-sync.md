@@ -2,16 +2,16 @@
 
 ## Introduction
 
-The **GitHub Copilot connector** lets Agent Prism read a customer's Copilot organisation straight from GitHub's API. With an org login and an org-scoped token saved, it pulls four kinds of data:
+The GitHub Copilot connector lets Agent Prism read a customer's Copilot organisation straight from GitHub's API. With an org login and an org-scoped token saved, it pulls four kinds of data:
 
 | Data | GitHub source | Re-read at most every |
 | --- | --- | --- |
-| **Seats**: who has a Copilot seat, plan, last activity | `GET /orgs/{org}/copilot/billing/seats` | 15 minutes |
-| **Usage per person**: AI credits, lines added, prompts, acceptances over the last 28 days | `GET /orgs/{org}/copilot/metrics/reports/users-28-day/latest` (NDJSON report files) | 6 hours |
-| **Usage per model**: AI credits by model for one month, for the org and the top 5 users | `GET /organizations/{org}/settings/billing/ai_credit/usage` | 6 hours |
-| **Budgets per person**: each user's AI-credit cap and how much of it is used | `GET /organizations/{org}/settings/billing/budgets?scope=user&user=` (one call per seat) | 15 minutes |
+| Seats: who has a Copilot seat, plan, last activity | `GET /orgs/{org}/copilot/billing/seats` | 15 minutes |
+| Usage per person: AI credits, lines added, prompts, acceptances over the last 28 days | `GET /orgs/{org}/copilot/metrics/reports/users-28-day/latest` (NDJSON report files) | 6 hours |
+| Usage per model: AI credits by model for one month, for the org and the top 5 users | `GET /organizations/{org}/settings/billing/ai_credit/usage` | 6 hours |
+| Budgets per person: each user's AI-credit cap and how much of it is used | `GET /organizations/{org}/settings/billing/budgets?scope=user&user=` (one call per seat) | 15 minutes |
 
-There's **no schedule**. Each sync runs when someone opens the screen that needs it, and only if the stored copy is older than the limit above. If GitHub fails, the last stored copy is shown with a warning.
+There's no schedule. Each sync runs when someone opens the screen that needs it, and only if the stored copy is older than the limit above. If GitHub fails, the last stored copy is shown with a warning.
 
 This data feeds:
 
@@ -23,9 +23,7 @@ This data feeds:
 
 Copilot activity sent by webhook to `/api/ingest/copilot` is a separate path, covered in [passive ingest](passive-ingest.md).
 
-Example: Acme saves its org `acme-eng` and a token. An admin opens the Copilot panel, and Agent Prism reads 120 seats from GitHub; 14 have had no activity for 45 days, so they're idle. The 28-day report shows 18,400 AI credits. The model view for this month shows that "Claude Opus 4.7", chosen by hand, used 62% of all credits. That's a **medium** finding: "make Auto the default".
-
-This is how the connector works today.
+Example: Acme saves its org `acme-eng` and a token. An admin opens the Copilot panel, and Agent Prism reads 120 seats from GitHub; 14 have had no activity for 45 days, so they're idle. The 28-day report shows 18,400 AI credits. The model view for this month shows that "Claude Opus 4.7", chosen by hand, used 62% of all credits. That's a medium finding: "make Auto the default".
 
 ## What we have today
 
@@ -37,17 +35,15 @@ This is how the connector works today.
 | `src/jobs/copilot-model-usage-sync.js` | `syncCopilotModelUsageIfStale` (6 h, org plus top 5 users), `resolvePeriod` |
 | `src/jobs/copilot-budget-sync.js` | `syncCopilotBudgetsIfStale` (15 min, 4 calls at a time), `isBudgetBreached`, `summarizeBudgets` |
 | `src/copilot/model-usage.js` | `parseModelName`, `parseModelUsageText` (for pasted tables), `analyzeModelUsage` (findings) |
-| `src/copilot/copilot-roi.js` | Return on Copilot (own document) |
+| `src/copilot/copilot-roi.js` | Return on Copilot (see [Return on Copilot](copilot-roi.md)) |
 | `server.js` | `POST /api/connectors` (org and token), `findCopilotApiConnector`, `findCopilotConnector`, `/api/copilot/seats`, `/usage`, `/budgets`, `/models`, `/models/import`, `buildCopilotModelReport` |
 | Storage | `copilot_seats`, `copilot_usage`, `copilot_model_usage`, `copilot_budget_status`, each keyed by workspace and connector |
 
 ## What it does
 
-- Shows how many Copilot seats a company pays for, and which ones nobody uses.
-- Shows who uses AI credits, and how much, without anyone exporting reports by hand.
-- Shows which models the credits went to, and points out wasteful patterns such as hand-picked premium models or one person using most of the pool.
-- Makes GitHub's own per-user budget breaches visible on the dashboard.
-- Keeps working through a GitHub outage, using the last good copy.
+It shows how many Copilot seats a company pays for and which ones nobody uses, and who uses AI credits and how much, without anyone exporting reports by hand. It also shows which models the credits went to, and points out wasteful patterns such as hand-picked premium models or one person using most of the pool.
+
+GitHub's own per-user budget breaches show up on the dashboard. If GitHub is down, it keeps working from the last good copy.
 
 ## Where the data comes from
 
@@ -59,7 +55,7 @@ This is how the connector works today.
 | 28-day usage report | `read:org`, plus the org policies "Copilot metrics API" and "Copilot usage metrics" switched on |
 | Model usage, budgets | Org administrator or billing manager (`admin:org`) |
 
-**Which connector is used.** Saving the Copilot card adds a **new** connector each time. The **newest** one that has both org and token is used for seats, usage and budgets. Model usage can use any Copilot connector, because it can also be filled by hand.
+**Which connector is used.** Saving the Copilot card adds a new connector each time. The newest one that has both org and token is used for seats, usage and budgets. Model usage can use any Copilot connector, because it can also be filled by hand.
 
 **Prices.** AI credit cost is `credits × price_per_credit_usd` from `config/pricing.json`. That's `null`, not $0, until a price is set. Model rows from GitHub's billing API use GitHub's own `grossAmount`.
 
@@ -69,22 +65,22 @@ This is how the connector works today.
 
 1. Check the connector has an org and token. If not: `not_configured` (model usage returns stored rows instead).
 2. Read the stored rows for this connector. If the newest `syncedAt` is within the limit, return them.
-3. Otherwise call GitHub, **replace** all stored rows for this connector (delete, then insert), and return the new rows.
+3. Otherwise call GitHub, replace all stored rows for this connector (delete, then insert), and return the new rows.
 4. If GitHub fails and stored rows exist, return them with `syncError`. If nothing is stored, return the error (`502 copilot_sync_failed`).
 
 ### 2. Seats
 
-All pages are read, 100 at a time, up to 500 pages (50,000 seats). For each seat: login, assigning team, plan type, last activity time and editor, last authentication, pending cancellation, seat created. A seat is an **idle candidate** when it has never been used or its last activity is more than 45 days old.
+All pages are read, 100 at a time, up to 500 pages (50,000 seats). For each seat: login, assigning team, plan type, last activity time and editor, last authentication, pending cancellation, seat created. A seat is an idle candidate when it has never been used or its last activity is more than 45 days old.
 
 ### 3. Usage per person (28 days)
 
-The report endpoint returns download links. Each file is fetched **without** our token, because the links are signed, and parsed one JSON line at a time; a line that can't be read is skipped and counted. Kept fields: `user_login`, `ai_credits_used`, `loc_added_sum`, `user_initiated_interaction_count`, `code_acceptance_activity_count`, plus the report's start and end days. Rows stored before lines-added was read are fetched again rather than shown as zero.
+The report endpoint returns download links. Each file is fetched without our token, because the links are signed, and parsed one JSON line at a time; a line that can't be read is skipped and counted. Kept fields: `user_login`, `ai_credits_used`, `loc_added_sum`, `user_initiated_interaction_count`, `code_acceptance_activity_count`, plus the report's start and end days. Rows stored before lines-added was read are fetched again rather than shown as zero.
 
 If GitHub says "No report available" and nothing is stored, the panel explains how to switch on the Copilot metrics policies, and that the first report can take about a day.
 
 ### 4. Usage per model (one month)
 
-`?month=YYYY-MM` (default: this month, UTC). It reads the org-level breakdown, then a breakdown for each of the **5 users with the most credits** (from the 28-day report). GitHub's several rows per model (one per product or SKU) are folded into one. If one user's call fails, the org-level rows are kept.
+`?month=YYYY-MM` (default: this month, UTC). It reads the org-level breakdown, then a breakdown for each of the 5 users with the most credits (from the 28-day report). GitHub's several rows per model (one per product or SKU) are folded into one. If one user's call fails, the org-level rows are kept.
 
 **Manual import** (`POST /api/copilot/models/import`, `settings.manage`) is for tokens that can't read billing. You send either `text` (the "Model used / AI credits used" table pasted from GitHub, or CSV/TSV; header and blank lines are skipped) or `items` (`[{ model, credits, login? }]`). It accepts at most 500 rows; duplicates are summed. It replaces that month's rows and is audited.
 
@@ -98,15 +94,15 @@ If GitHub says "No report available" and nothing is stored, the panel explains h
 | `user_concentration` | With 3 or more users, one uses more than 30% of credits | high above 60%, otherwise medium |
 | `user_pinned_model` | More than 50% of a user's own credits go to one hand-picked model | low |
 
-Each finding gives credits, cost where it's known, and an action. On purpose, findings **don't** estimate a saving, because GitHub doesn't publish per-request credit multipliers.
+Each finding gives credits, cost where it's known, and an action. On purpose, findings don't estimate a saving, because GitHub doesn't publish per-request credit multipliers.
 
 ### 5. Budgets per person
 
-There's one call per seat login (from the seat sync), 4 at a time. The user's **effective** budget is used, and only if it's an AI-credit budget (`budget_product_sku = ai_credits`), so an Actions or Codespaces budget is never shown as a Copilot cap. A seat is **breached** when consumed ≥ cap, which is the same point at which GitHub blocks the user. The summary gives the cap, how many seats have a cap, how many are breached, and the breached seats, worst first.
+There's one call per seat login (from the seat sync), 4 at a time. The user's effective budget is used, and only if it's an AI-credit budget (`budget_product_sku = ai_credits`), so an Actions or Codespaces budget is never shown as a Copilot cap. A seat is breached when consumed ≥ cap, which is the same point at which GitHub blocks the user. The summary gives the cap, how many seats have a cap, how many are breached, and the breached seats, worst first.
 
 ### 6. Who sees what
 
-Totals are shown to everyone in the workspace. **Per-person** detail (seat holders, each person's usage and cost, who breached a cap, per-user model use and findings that name a person) is shown only with `reports.view` (admin). Everyone else gets `seatsHidden`, `breachedHidden` or `perPersonHidden`.
+Totals are shown to everyone in the workspace. Per-person detail (seat holders, each person's usage and cost, who breached a cap, per-user model use and findings that name a person) is shown only with `reports.view` (admin). Everyone else gets `seatsHidden`, `breachedHidden` or `perPersonHidden`.
 
 ## API
 
@@ -125,7 +121,7 @@ Totals are shown to everyone in the workspace. **Per-person** detail (seat holde
 - **Copilot panel**: seats and idle seats, AI credits and cost (or "price not set"), budget breaches, model breakdown with findings, an import box, and warnings when the last sync failed.
 - **Overview → Return on Copilot** (see [copilot-roi](copilot-roi.md)).
 
-## Changes by file
+## Code by file
 
 Where the Copilot sync code is:
 

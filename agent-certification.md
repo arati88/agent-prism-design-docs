@@ -2,7 +2,7 @@
 
 ## Introduction
 
-Agent Prism can stop an agent from running in production until a person has reviewed it. This is **certification**.
+Agent Prism can stop an agent from running in production until a person has reviewed it. This is certification.
 
 There are three parts:
 
@@ -10,11 +10,9 @@ There are three parts:
 - **Certification checks.** A fixed set of checks runs over the agent's past runs: how dangerous its tools are, whether a human approved the risky actions, policy violations, and how many successful staging runs it has. The result is a plain pass or fail with a reason for each check.
 - **The production gate.** When a run is reported with `environment: "production"`, Agent Prism rejects it with `403` unless the agent has a valid production certificate.
 
-Going to production takes **two people**. One person requests the promotion, and a different owner or admin approves it.
+Going to production takes two people. One person requests the promotion, and a different owner or admin approves it.
 
 Example: the agent `invoice-bot` reports the tools `search_invoices` (level 0), `create_record` (level 1) and `send_email` (level 2). Its tier is 2, its highest level. A tier 2 agent needs 20 successful staging runs, a danger score of 50 or less, a human approval on every run that used a level 2 tool, and no policy violations. When it passes, Alice requests promotion and Bob, an admin, approves it. From then on, `invoice-bot` production runs are accepted for 30 days.
-
-What follows is the certification flow as it's coded today, not a proposal.
 
 ## What we have today
 
@@ -25,20 +23,17 @@ What follows is the certification flow as it's coded today, not a proposal.
 | `src/connectors.js` | `enrichCertification`: classifies the tool manifest on every passive ingest run |
 | `server.js` | `enforceProductionCertGate`, `checkAutoRevoke`, and the `/api/agents/*` and `/api/promotions/*` routes |
 | Storage | Postgres: `agent_definitions`, `agent_tools`, `agent_certifications`, `certification_checks`, `agent_promotions` (migrations `007`, `008`). File store: `certifications` and `promotions` lists, with agent definitions worked out from runs each time they're read |
-| `public/app.js` | The **Agent Certification** panel and the **Pending Promotions** queue |
+| `public/app.js` | The Agent Certification panel and the Pending Promotions queue |
 
 ## What it does
 
-- Lists every agent that has reported a tool manifest, with its tier, its tools and the risk of each one.
-- Checks an agent against rules that get stricter as its tier rises, and explains every failure.
-- Blocks production runs from agents that aren't certified, or whose certificate has expired.
-- Requires a second, different owner or admin to approve each move to production.
-- **Revokes** a production certificate automatically when the agent starts using a new high-risk tool in production.
-- Writes every certify, promotion request, approval, rejection and revocation to the audit log.
+It lists every agent that has sent a tool manifest, with its tier, its tools and how risky each tool is, and checks the agent against rules that get stricter as the tier goes up. Every failed check comes with a reason.
+
+Uncertified agents, and agents whose certificate has expired, can't run in production. Moving an agent to production needs a second owner or admin to approve it, and the certificate is revoked automatically if the agent later starts using a new high-risk tool in production. Every certification, promotion request, approval, rejection and revocation goes into the audit log.
 
 ## Where the data comes from
 
-Everything is taken from the agent's **runs**, sent through passive ingest (see [passive ingest](passive-ingest.md)). These run fields matter:
+Everything is taken from the agent's runs, sent through passive ingest (see [passive ingest](passive-ingest.md)). These run fields matter:
 
 | Field | Used for |
 | --- | --- |
@@ -55,7 +50,7 @@ Everything is taken from the agent's **runs**, sent through passive ingest (see 
 
 ### 1. Classifying tools
 
-Before matching, the tool name is split into words: `dropTable` becomes `drop Table`, and `exec_shell` becomes `exec shell`. The name is then checked against the rules from **most dangerous down**, and the first match wins.
+Before matching, the tool name is split into words: `dropTable` becomes `drop Table`, and `exec_shell` becomes `exec shell`. The name is then checked against the rules from most dangerous down, and the first match wins.
 
 | Level | Category | Example names | Human approval needed |
 | --- | --- | --- | --- |
@@ -83,11 +78,11 @@ These values are saved on the run (`toolManifest`, `dangerScore`, `agentTier`).
 
 ### 2. The agent's tier
 
-An agent's tier is the **highest tier of any run it has ever had**. On Postgres, `agent_definitions` and `agent_tools` are updated on each run that has a manifest. The tier only ever goes up. The file store works out the same thing from the runs each time.
+An agent's tier is the highest tier of any run it has ever had. On Postgres, `agent_definitions` and `agent_tools` are updated on each run that has a manifest. The tier only ever goes up. The file store works out the same thing from the runs each time.
 
 ### 3. The checks
 
-`evaluateAgent(agentName, runs, environment)` looks at **all** of the agent's runs. The rules depend on the tier:
+`evaluateAgent(agentName, runs, environment)` looks at all of the agent's runs. The rules depend on the tier:
 
 | Tier | Min successful staging runs | Max danger score | Max autonomy (warning only) | Approval needed on tools of level | Production |
 | --- | --- | --- | --- | --- | --- |
@@ -95,7 +90,7 @@ An agent's tier is the **highest tier of any run it has ever had**. On Postgres,
 | 1 | 10 | 20 | 4 | — | Allowed |
 | 2 | 20 | 50 | 3 | 2 | Allowed |
 | 3 | 30 | 75 | 2 | 2, 3 | Allowed |
-| 4 | — | 0 | 1 | 2, 3, 4 | **Never** |
+| 4 | — | 0 | 1 | 2, 3, 4 | Never |
 
 | Check | Fails when | Blocks? |
 | --- | --- | --- |
@@ -132,7 +127,7 @@ Production:  POST /api/agents/:name/promote
                → promotion closed, agent stays uncertified
 ```
 
-Approval rules: the approver must be **signed in to the dashboard** (an API key isn't enough), must be an **owner or admin**, and must **not be the person who requested** the promotion. Approving or rejecting a promotion that's already closed returns `409`.
+Approval rules: the approver must be signed in to the dashboard (an API key isn't enough), must be an owner or admin, and must not be the person who requested the promotion. Approving or rejecting a promotion that's already closed returns `409`.
 
 Who can do what (`src/permissions.js`):
 
@@ -152,7 +147,7 @@ Who can do what (`src/permissions.js`):
 
 ### 6. Automatic revocation
 
-After a production run is saved, `checkAutoRevoke` compares its tools with the risky tools recorded when the agent was certified. If the run has a tool that is **level 3 or higher, or unclassified**, and wasn't in that list, the production certificate is set to `revoked` and an `Agent Cert Auto-Revoked` audit event is written. The next production run is then blocked.
+After a production run is saved, `checkAutoRevoke` compares its tools with the risky tools recorded when the agent was certified. If the run has a tool that is level 3 or higher, or unclassified, and wasn't in that list, the production certificate is set to `revoked` and an `Agent Cert Auto-Revoked` audit event is written. The next production run is then blocked.
 
 ### 7. Manual revocation
 
@@ -183,16 +178,16 @@ Gate rejection example:
 
 ## Dashboard / UI
 
-The **Agent Certification** panel shows:
+The Agent Certification panel shows:
 
 - A "How production enforcement works" guide in four steps: certify in staging, promote, the gate blocks uncertified runs, auto-revoke.
 - A card for each agent. It shows the tier badge, agent type, up to 5 tool pills, a risk score bar, human review coverage, and the staging and production status (Certified, Not Certified, Pending Approval or Revoked).
-- One next step on each card: **Review & Certify for Staging** → **Request Production Promotion** → **Live in production**, with **Revoke Production Cert**.
+- One next step on each card: Review & Certify for Staging → Request Production Promotion → Live in production, with Revoke Production Cert.
 - A review screen before certifying. It lists every tool with its risk and what the person is approving: the tier, whether human approval is needed, 30-day validity and auto-revoke. A tier 4 agent can't be certified for production.
 
-The **Pending Promotions** queue lists open requests. Owners and admins see **Approve** and **Reject**. The person who made the request sees "a different reviewer must approve it".
+The Pending Promotions queue lists open requests. Owners and admins see Approve and Reject. The person who made the request sees "a different reviewer must approve it".
 
-## Changes by file
+## Code by file
 
 Where the certification code lives:
 

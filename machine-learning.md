@@ -8,11 +8,9 @@ Agent Prism has three small machine-learning pieces. All of them run inside the 
 - **Unusual-run detector** (isolation forest). It learns what a normal run looks like for the workspace (tokens, cost, duration, retries) and flags runs far outside that. No labels are needed. Flagged runs appear on the Cost Leak Radar and in the Run value panel.
 - **Task classifier.** It labels each run's task as code, reasoning, summarization, creative, data, multi_tool, simple_qa or general. It uses the organisation's LLM when that's switched on, and keyword rules otherwise. The label is used to judge whether the run used the right model.
 
-The **Run value** panel (Admin) turns the first two into money: how much spend had no business return, which agents it came from, the main reason and a fix.
+The Run value panel (Admin) turns the first two into money: how much spend had no business return, which agents it came from, the main reason and a fix.
 
 Example: over 30 days a workspace spent $400 on 900 runs. 120 of them (13%) scored below 0.5, adding up to $62 of spend without return. Most of that ($41, 66%) came from runs that went over budget, so the advice is to set a per-run budget and stop runs early. The detector also flags 4 runs. One reads "Input tokens 14× the usual", which is likely a runaway prompt.
-
-These are the ML pieces as they're coded today.
 
 ## What we have today
 
@@ -29,10 +27,7 @@ These are the ML pieces as they're coded today.
 
 ## What it does
 
-- Lets the team teach Agent Prism what a valuable run is for **them**, with one click per run.
-- Puts a dollar figure on spend that brought no return, with the agents responsible and what to change.
-- Spots runaway runs (loops, huge prompts, misconfiguration) without anyone setting thresholds.
-- Labels each run's task type, so model-fit advice knows what the run was trying to do.
+The team can teach Agent Prism what a valuable run looks like for them, with one click per run. From that it puts a dollar figure on spend that brought nothing back, names the agents responsible and suggests what to change. It also spots runaway runs (loops, huge prompts, misconfiguration) without anyone setting thresholds, and labels each run's task type so the model-fit advice knows what the run was trying to do.
 
 ## Where the data comes from
 
@@ -72,7 +67,7 @@ Which runs are used:
 P(worth it) = sigmoid(bias + w1·success + w2·budget + … + w6·retries)
 ```
 
-- **Training.** Every time someone gives 👍/👎 (`POST /api/runs/:id/feedback`), and the workspace then has **20 or more** labels, the model trains on all of them: 200 passes of gradient descent, learning rate 0.05, L2 penalty 0.01. It stops early when the loss stops improving. Training continues from the current weights.
+- **Training.** Every time someone gives 👍/👎 (`POST /api/runs/:id/feedback`), and the workspace then has 20 or more labels, the model trains on all of them: 200 passes of gradient descent, learning rate 0.05, L2 penalty 0.01. It stops early when the loss stops improving. Training continues from the current weights.
 - **Saving.** The weights are saved to `ml_model_weights` under the name `control_score_lr`.
 - **Use.** Once it's ready, the dashboard's control score is P(worth it) × 100, and the Run value report runs in "learned" mode.
 
@@ -80,7 +75,7 @@ P(worth it) = sigmoid(bias + w1·success + w2·budget + … + w6·retries)
 
 1. **Fit.** It needs at least 30 runs. Each of the five values (input tokens, output tokens, cost, duration, retries) is scaled to 0–1 using the minimum and maximum in the training runs. It builds 100 random trees, each from up to 256 runs, by repeatedly splitting on a random value at a random point.
 2. **Score.** A run that gets isolated in few splits is unusual. The score is 2^(−average path length ÷ c(256)), between 0 and 1. Closer to 1 is more unusual.
-3. **Flag.** A score above **0.62** counts as unusual.
+3. **Flag.** A score above 0.62 counts as unusual.
 
 When it's built:
 
@@ -98,7 +93,7 @@ Each run gets a value between 0 and 1:
 | `rules` | Fewer than 20 labels | 0 if the run finished without success (running runs excluded), otherwise the fixed control score ÷ 100 |
 | `learned` | 20 or more labels | The value model's P(worth it) |
 
-- A run with value **below 0.5** is low value, and its cost counts as "spend without business return".
+- A run with value below 0.5 is low value, and its cost counts as "spend without business return".
 - **Main reason** for each low-value run: the feature costing it most (weight × (1 − value)). Only features with a positive weight count. Reasons are added up by spend, overall and for each agent:
 
 | Feature | Reason shown | Fix shown |
@@ -116,17 +111,17 @@ Each run gets a value between 0 and 1:
 
 ### 5. The task classifier
 
-On `/api/ingest/claude` (when the body has `messages`) and `/api/ingest/generic` (when it has `messages` or `prompt`), after the run is saved and **without waiting**:
+On `/api/ingest/claude` (when the body has `messages`) and `/api/ingest/generic` (when it has `messages` or `prompt`), after the run is saved and without waiting:
 
 1. If the run used 2 or more tools, the answer is `multi_tool`.
 2. The first 4 messages are joined and cut to 800 characters. If that's empty, the answer is `general`.
 3. If the same text was classified before, the cached answer is used. The cache holds 2,000 entries per process.
 4. If the LLM classifier is off, the keyword rules decide.
 5. Otherwise, personal data is removed from the text, it's wrapped in `<agent_content>` tags with an instruction that it is data to classify, not instructions, and it's sent to the organisation's LLM (up to 12 tokens back).
-6. If the answer is one of the 8 types, it's used and cached. A different answer, an error, or no reply within **4 seconds** falls back to the keyword rules.
+6. If the answer is one of the 8 types, it's used and cached. A different answer, an error, or no reply within 4 seconds falls back to the keyword rules.
 7. The run's `task_type` is updated.
 
-The LLM classifier is **off by default**. It needs `LLM_CLASSIFIER_ENABLED=true` and a configured LLM provider, because it sends prompt text (with personal data removed) outside the deployment.
+The LLM classifier is off by default. It needs `LLM_CLASSIFIER_ENABLED=true` and a configured LLM provider, because it sends prompt text (with personal data removed) outside the deployment.
 
 ## API
 
@@ -142,7 +137,7 @@ The LLM classifier is **off by default**. It needs `LLM_CLASSIFIER_ENABLED=true`
 - **ML status panel.** Value model ACTIVE, or "x/20 labels"; detector state; classifier state. When the model is trained, its weights are shown in green or red.
 - **Activity feed.** 👍/👎 on each run, showing how many labels are still needed.
 
-## Changes by file
+## Code by file
 
 ML code is in:
 
@@ -179,7 +174,7 @@ Not tested yet, and worth adding:
 
 Things to be aware of with the models:
 
-1. **The detector flags most runs in small workspaces.** The score is always scaled by the figure for 256 runs, even when a tree was built from fewer. A quick simulation on ordinary runs with nothing unusual flagged about **97% at 30 runs, 40% at 60 and 15% at 100**, falling to under 1% only from 256 runs. Every flagged run also appears on the Cost Leak Radar as a "Statistical anomaly", so a new workspace's radar fills with false leaks. The "≈5% false-positive rate" in the code comment only holds for large workspaces.
+1. **The detector flags most runs in small workspaces.** The score is always scaled by the figure for 256 runs, even when a tree was built from fewer. A quick simulation on ordinary runs with nothing unusual flagged about 97% at 30 runs, 40% at 60 and 15% at 100, falling to under 1% only from 256 runs. Every flagged run also appears on the Cost Leak Radar as a "Statistical anomaly", so a new workspace's radar fills with false leaks. The "≈5% false-positive rate" in the code comment only holds for large workspaces.
 2. **Models live in each server's memory.** A label retrains the model only in the process that received it. With `npm run cluster`, other workers keep the old model until restart. On Postgres, saved weights are loaded only at start-up.
 3. **One label can change every score.** At 20 labels, every control score in the workspace switches from the fixed formula to P(worth it), on a different scale. Twenty labels is very few, nothing checks that both 👍 and 👎 are present, and if all 20 are 👍 the model learns that everything is valuable.
 4. **Any member can train the model.** Labels need only `agents.operate`, and one person's labels change the score for the whole workspace. Nothing records who labelled what.

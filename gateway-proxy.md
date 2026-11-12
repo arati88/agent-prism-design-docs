@@ -6,11 +6,9 @@ The gateway proxy is one of the two ways run data gets into Agent Prism. The oth
 
 With the gateway, an agent doesn't call Anthropic or OpenAI directly. It calls Agent Prism, using the same request body it would send to the provider. Agent Prism checks the caller, forwards the call with the workspace's own provider key, returns the provider's answer unchanged, and records the run: tokens, cost, latency and model.
 
-So a team gets cost tracking, budgets and rate limits **without changing their agent's code**, only its base URL and key.
+So a team gets cost tracking, budgets and rate limits without changing their agent's code, only its base URL and key.
 
 Example: an agent using the Anthropic SDK sets `ANTHROPIC_BASE_URL=https://<agent-prism>/` and uses an `acp_…` Agent Prism key instead of its Anthropic key. Every `messages.create()` call now appears on the dashboard with its cost, and stops with a clear error once the month's budget is used up.
-
-Everything below is how the gateway behaves in the code right now.
 
 ## What we have today
 
@@ -18,14 +16,14 @@ Four routes, one per provider API:
 
 | Route | Forwards to | Provider key comes from | Upstream breaker |
 | --- | --- | --- | --- |
-| `POST /v1/messages` | `https://api.anthropic.com/v1/messages` | The workspace's **Claude** connector (`provider: "anthropic"`) | `breakers.anthropic` |
-| `POST /v1/responses` | `https://api.openai.com/v1/responses` | The workspace's **OpenAI** connector (`provider: "openai"`) | `breakers.openai` |
-| `POST /v1/chat/completions` | `https://api.openai.com/v1/chat/completions` | The same **OpenAI** connector | `breakers.openai` |
-| `POST /v1/azure/chat/completions` | `{endpoint}/openai/deployments/{deployment}/chat/completions?api-version=…` | The workspace's **Azure OpenAI** connector (`provider: "azure_openai"`: endpoint, apiKey, deployment, apiVersion) | `breakers.azure` |
+| `POST /v1/messages` | `https://api.anthropic.com/v1/messages` | The workspace's Claude connector (`provider: "anthropic"`) | `breakers.anthropic` |
+| `POST /v1/responses` | `https://api.openai.com/v1/responses` | The workspace's OpenAI connector (`provider: "openai"`) | `breakers.openai` |
+| `POST /v1/chat/completions` | `https://api.openai.com/v1/chat/completions` | The same OpenAI connector | `breakers.openai` |
+| `POST /v1/azure/chat/completions` | `{endpoint}/openai/deployments/{deployment}/chat/completions?api-version=…` | The workspace's Azure OpenAI connector (`provider: "azure_openai"`: endpoint, apiKey, deployment, apiVersion) | `breakers.azure` |
 
 The provider key is pasted once into the connector on the dashboard. Agents never see it; they only hold an Agent Prism key.
 
-The gateway is a **paid feature**: it's only available on Starter and higher plans (`gatewayAccess` in `src/plans.js`).
+The gateway is a paid feature: it's only available on Starter and higher plans (`gatewayAccess` in `src/plans.js`).
 
 ## What it does
 
@@ -35,7 +33,7 @@ For each call, in this order:
 2. **Checks the plan.** Is the gateway in this plan? Is the workspace under its monthly run cap and agent cap?
 3. **Checks rate limits per key.** Requests per minute and tokens per minute.
 4. **Finds the provider key** in the workspace's connector.
-5. **Checks the monthly budget.** If this month's spend has reached the budget, the call is refused **before** any money is spent with the provider.
+5. **Checks the monthly budget.** If this month's spend has reached the budget, the call is refused before any money is spent with the provider.
 6. **Classifies the task** (coding, summarising and so on) and checks whether the chosen model fits it.
 7. **Forwards the call** to the provider, through a circuit breaker and with a timeout.
 8. **Records the run** if the provider answered with success: tokens, cost, latency, model and task type.
@@ -62,18 +60,18 @@ For each call, in this order:
 | Agent Prism key | Must be a valid workspace key | `401` |
 | Plan includes the gateway | `checkGatewayAllowed`: Starter or higher | `402 gateway_not_available` |
 | Plan caps | `checkPlanAllows`: monthly runs and number of agents | `402 run_limit_reached` / agent limit |
-| Requests per minute, per key | `RATE_LIMIT_KEY_RPM`, default **60** | `429 rate_limit_exceeded` with `Retry-After` |
-| Tokens per minute, per key | `RATE_LIMIT_KEY_TPM`, default **100,000**. Counted after each successful call | `429 rate_limit_exceeded` with `Retry-After` |
+| Requests per minute, per key | `RATE_LIMIT_KEY_RPM`, default 60 | `429 rate_limit_exceeded` with `Retry-After` |
+| Tokens per minute, per key | `RATE_LIMIT_KEY_TPM`, default 100,000. Counted after each successful call | `429 rate_limit_exceeded` with `Retry-After` |
 | Provider key present | The connector must exist and have a key | `403 forbidden` ("No … configured"), or `423 tenant_encryption_sealed` when the key is encrypted with a customer key that hasn't been unsealed |
 | Azure endpoint is safe | `assertSafeOutboundUrl`: no private or internal addresses. Deployment and API version are URL-encoded so they can't change the path | `400 unsafe_url` |
 | Monthly budget | `connector.config.monthlyBudgetUsd`, else `GATEWAY_MONTHLY_BUDGET_USD`, else no budget (0) | `402 budget_exceeded` with `spentUsd` and `budgetUsd` |
 
-When the budget refuses a call, it's also recorded with `recordSpendBlock` (at most one per key per minute). The CFO savings report counts these as **Avoided** spend.
+When the budget refuses a call, it's also recorded with `recordSpendBlock` (at most one per key per minute). The CFO savings report counts these as Avoided spend.
 
 ### The call itself
 
-- `gatewayFetch` sends the request with a timeout: `GATEWAY_TIMEOUT_MS`, default **30 seconds**, which can be set per provider (`GATEWAY_TIMEOUT_ANTHROPIC_MS`, `_OPENAI_MS`, `_AZURE_MS`). Redirects are refused, so a provider URL can't bounce the call to an internal host.
-- The call goes through the provider's **circuit breaker** (`src/circuit-breaker.js`). After repeated failures the breaker opens and calls fail at once for a while, instead of each one waiting for the timeout.
+- `gatewayFetch` sends the request with a timeout: `GATEWAY_TIMEOUT_MS`, default 30 seconds, which can be set per provider (`GATEWAY_TIMEOUT_ANTHROPIC_MS`, `_OPENAI_MS`, `_AZURE_MS`). Redirects are refused, so a provider URL can't bounce the call to an internal host.
+- The call goes through the provider's circuit breaker (`src/circuit-breaker.js`). After repeated failures the breaker opens and calls fail at once for a while, instead of each one waiting for the timeout.
 - For Anthropic, the `anthropic-version` header is passed through (default `2023-06-01`), and Anthropic's rate-limit headers are saved so the dashboard can show how close the workspace is to them.
 
 ### Recording the run
@@ -97,7 +95,7 @@ Every run also stores the model, task type, start and end time, latency, tokens 
 
 ### Prompt capture
 
-Prompt capture is off by default. It needs `PROMPT_CAPTURE_ENABLED=true` **and** a plan that includes it (`promptCapture`).
+Prompt capture is off by default. It needs `PROMPT_CAPTURE_ENABLED=true` and a plan that includes it (`promptCapture`).
 
 - `PROMPT_CAPTURE_SAMPLING_RATE` (default 1.0 = every call) decides how many calls are saved.
 - `PROMPT_CAPTURE_SCRUB_PII` (on unless set to `false`) removes personal data from the prompt and response before saving.
@@ -108,7 +106,7 @@ Prompt capture is off by default. It needs `PROMPT_CAPTURE_ENABLED=true` **and**
 
 | What happened | Agent gets |
 | --- | --- |
-| Provider answered with an error (4xx/5xx) | The provider's own status and body, unchanged. **No run is recorded** |
+| Provider answered with an error (4xx/5xx) | The provider's own status and body, unchanged. No run is recorded |
 | Circuit breaker is open | `503 provider_unavailable` |
 | Timed out | `504 gateway_timeout` |
 | Network or other failure | `502 bad_gateway` |
@@ -117,7 +115,7 @@ Error messages pass through `scrubSecrets`, so a provider key can't leak in an e
 
 ## API
 
-The request and response bodies are **exactly the provider's own**, so any official SDK works by changing its base URL and key.
+The request and response bodies are exactly the provider's own, so any official SDK works by changing its base URL and key.
 
 Agent Prism adds these response headers:
 
@@ -157,9 +155,9 @@ Example of a refused call (budget reached):
 The gateway has no page of its own. Its runs appear everywhere other runs do: Overview, Runs, cost leaks, Run value and the savings report.
 
 - **Connectors** (Admin tab): the Claude, OpenAI and Azure OpenAI cards are where the provider key, Azure details and the optional monthly budget are saved. The connector catalog shows each card's gateway URL (`/v1/messages`, `/v1/responses`, `/v1/azure/chat/completions`).
-- **CFO savings report**: refused calls show up under **Avoided**.
+- **CFO savings report**: refused calls show up under Avoided.
 
-## Changes by file
+## Code by file
 
 The gateway's code is spread across these files:
 
@@ -210,7 +208,7 @@ Things I noticed in the code that don't work well, or might surprise people:
    | Prompt capture | ✅ | ✅ | ✅ | ❌ |
    | Fitness headers | ✅ | ✅ | ✅ | Task type only |
 
-   The biggest gap is that `/v1/chat/completions` has **no budget and no rate limit**, although its spend counts toward the OpenAI budget. The Azure route skips the agent limit: a code comment says it's "checked against the run's real name further down", but nothing further down checks it, so Azure calls can add agents beyond the plan's limit.
+   The biggest gap is that `/v1/chat/completions` has no budget and no rate limit, although its spend counts toward the OpenAI budget. The Azure route skips the agent limit: a code comment says it's "checked against the run's real name further down", but nothing further down checks it, so Azure calls can add agents beyond the plan's limit.
 2. **No streaming.** The gateway waits for the full response (`.json()`). Requests with `stream: true` aren't supported.
 3. **Failed calls aren't recorded.** Provider errors, timeouts and blocked calls don't become runs, so failure rates and retry costs on the dashboard only come from passive ingest.
 4. **Not subject to the production certification gate**, unlike passive ingest. Every gateway run is marked `production`, so an uncertified agent can run in production through the gateway.

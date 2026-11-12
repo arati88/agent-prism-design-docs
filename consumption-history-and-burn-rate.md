@@ -4,16 +4,14 @@
 
 Two dashboard views show what developers' AI coding tools are using. The data comes from the fleet collector (`collector.js` on each machine) or the local Live Sessions scan:
 
-- **Spend History** (the `cost-history` tab, called "AI Consumption History" in the original plan). It shows daily consumption value by developer, team and model, with a trend chart, a developer leaderboard and plan-utilisation advice. The range can be **Today**, **7 Days**, **30 Days**, **All Time**, or **any calendar range** chosen with two date fields. It refreshes every 30 seconds.
-- **Live Sessions.** Each running session's tokens, context and **burn rate**, an estimated **$ per hour** pace.
+- **Spend History** (the `cost-history` tab, called "AI Consumption History" in the original plan). It shows daily consumption value by developer, team and model, with a trend chart, a developer leaderboard and plan-utilisation advice. The range can be Today, 7 Days, 30 Days, All Time, or any calendar range chosen with two date fields. It refreshes every 30 seconds.
+- **Live Sessions.** Each running session's tokens, context and burn rate, an estimated $ per hour pace.
 
-Both values are **API list-price estimates**, not what the customer is billed. Claude Code or Codex on a subscription isn't billed per token. Because people kept reading burn rate as "what my current prompt costs", both views carry always-visible notes, not just hover text.
+Both values are API list-price estimates, not what the customer is billed. Claude Code or Codex on a subscription isn't billed per token. Because people kept reading burn rate as "what my current prompt costs", both views carry always-visible notes, not just hover text.
 
 This document replaces two openspec items in our format: the change `openspec/changes/consumption-history-calendar-and-burn-rate-explainer/`, and the Live Sessions metric glossary (`openspec/changes/archive/2026-08-24-live-sessions-business-context/`, spec `openspec/specs/live-sessions-metric-glossary/spec.md`). It also describes the views themselves, which had no design document. The fleet collector and fleet ingest are a separate topic.
 
-Example: a developer's Claude Code session started at 09:00. By 10:30 it has used tokens worth $4.20 at list price, so its burn rate is $4.20 ÷ 1.5 h = $2.80/hr. Hovering shows "$4.20 in 1h 30m — burning $2.80/hr, on pace for $7.00 if this continues another hour (API-list-price estimate — not billed cost on a subscription plan)". In Spend History, a manager picks **3 March – 17 March**, and the view calls `/api/usage/daily?from=2026-03-03&to=2026-03-17`.
-
-Both views are described as they currently behave.
+Example: a developer's Claude Code session started at 09:00. By 10:30 it has used tokens worth $4.20 at list price, so its burn rate is $4.20 ÷ 1.5 h = $2.80/hr. Hovering shows "$4.20 in 1h 30m — burning $2.80/hr, on pace for $7.00 if this continues another hour (API-list-price estimate — not billed cost on a subscription plan)". In Spend History, a manager picks 3 March – 17 March, and the view calls `/api/usage/daily?from=2026-03-03&to=2026-03-17`.
 
 ## What we have today
 
@@ -30,15 +28,13 @@ Both views are described as they currently behave.
 
 ## What it does
 
-- Lets a manager report AI consumption for any date range, by developer and team.
-- Shows how fast each running session is spending, and where it's heading if it carries on.
-- Makes clear, without hovering, that these are list-price estimates, not invoices.
+A manager can report AI consumption for any date range, by developer and by team. For each running session it shows how fast money is being spent and where that's heading if it carries on. The view says plainly, without hovering, that these are list-price estimates and not invoices.
 
 ## Where the data comes from
 
 | Data | Source |
 | --- | --- |
-| Daily rows (developer, date, team, input, output and cache tokens, cost, sessions) | `daily_usage_rollup`, filled by `/api/fleet/ingest` from the **increase** in each session's totals, priced with `computeClaudeCost`, dated by UTC day |
+| Daily rows (developer, date, team, input, output and cache tokens, cost, sessions) | `daily_usage_rollup`, filled by `/api/fleet/ingest` from the increase in each session's totals, priced with `computeClaudeCost`, dated by UTC day |
 | By model | `daily_usage_by_model`, the same source |
 | Team | Developer → team assignments (`POST /api/tenant/team-assignments`) |
 | Session cost and burn rate | Each session's lifetime token totals, priced with Claude rates; start and last-activity times from the collector |
@@ -53,7 +49,7 @@ Both views are described as they currently behave.
 | 7 Days | today − 6 – today |
 | 30 Days | today − 29 – today |
 | All Time | no filter |
-| Custom | both date fields, applied only when **both** are set and end ≥ start; otherwise nothing changes |
+| Custom | both date fields, applied only when both are set and end ≥ start; otherwise nothing changes |
 
 Choosing a preset or a custom range re-draws the view, highlights the active control and reloads. The 30-second refresh always reloads the current range, including a custom one.
 
@@ -72,7 +68,7 @@ elapsed   = lastActivity − startTime, at least 1 minute
 burn rate = session cost so far ÷ elapsed hours
 ```
 
-If there are no start and end times (an older collector), burn rate is `null` in Fleet Mode and the hover text says "restart collector.js to see burn rate". The single-machine scan returns `0` instead of `null` in that case. For a running session, the hover text projects **cost + one hour at that rate**. For a finished one, it gives the average. The colour tone is warn at $5/hr or more. The Live Sessions total burn adds up the rates of active sessions.
+If there are no start and end times (an older collector), burn rate is `null` in Fleet Mode and the hover text says "restart collector.js to see burn rate". The single-machine scan returns `0` instead of `null` in that case. For a running session, the hover text projects cost + one hour at that rate. For a finished one, it gives the average. The colour tone is warn at $5/hr or more. The Live Sessions total burn adds up the rates of active sessions.
 
 ### 4. Always-visible notes
 
@@ -96,7 +92,7 @@ If there are no start and end times (an older collector), burn rate is `null` in
   - content: total and today, trend chart with hover, developer leaderboard, by team, by model, plan utilisation.
 - **Live Sessions:** sessions table with "Burn Rate (est.)", hover sentences, and the glossary under the stats bar.
 
-## Changes by file
+## Code by file
 
 Code for both views:
 
@@ -121,6 +117,6 @@ None automated for the range controls, burn rate or notes. The openspec tasks re
 
 Things that can mislead people reading these views:
 
-1. **Burn rate is a lifetime average, not recent pace.** It divides **all** the session's cost by the time from its first to its last activity. A session resumed after a long pause shows a very low rate, and a short burst shows a very high one. The original plan described it as "a rate estimate based on recent activity", which isn't what the formula does. The "on pace for…" projection assumes the same rate for another full hour.
+1. **Burn rate is a lifetime average, not recent pace.** It divides all the session's cost by the time from its first to its last activity. A session resumed after a long pause shows a very low rate, and a short burst shows a very high one. The original plan described it as "a rate estimate based on recent activity", which isn't what the formula does. The "on pace for…" projection assumes the same rate for another full hour.
 2. **Every session is priced at Claude rates.** Fleet rollups and burn rate use `computeClaudeCost` whatever the tool, so Codex or other non-Claude sessions get Claude prices, or the default Sonnet price for unknown models.
 3. **Per-developer spend is visible to everyone in the workspace.** `/api/usage/daily` returns rows per developer to any signed-in user, including viewers. The Copilot views, by contrast, hide per-person detail from non-admins (see [Copilot connector](copilot-connector-and-sync.md)).

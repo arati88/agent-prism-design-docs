@@ -2,7 +2,7 @@
 
 ## Introduction
 
-Agent Prism's own AI features are the **AI Advisor**, the **Prompt Advisor**, the optional **task classifier**, and an admin **connection test**. They all go through one place, `src/llm/provider.js`, and use **one model service per installation**, chosen with environment variables:
+Agent Prism's own AI features are the AI Advisor, the Prompt Advisor, the optional task classifier, and an admin connection test. They all go through one place, `src/llm/provider.js`, and use one model service per installation, chosen with environment variables:
 
 | `AI_PROVIDER` | Service | Sign-in without a stored key |
 | --- | --- | --- |
@@ -14,13 +14,11 @@ Agent Prism's own AI features are the **AI Advisor**, the **Prompt Advisor**, th
 | `openai`, `anthropic` | Public APIs | — |
 | `ollama`, `openrouter` | Development only | — |
 
-Nothing is sent anywhere until a provider is set. This is **separate** from the gateway (`/v1/*`), which forwards **customers' agents'** calls to **their** providers (see [gateway proxy](gateway-proxy.md)).
+Nothing is sent anywhere until a provider is set. This is separate from the gateway (`/v1/*`), which forwards customers' agents' calls to their providers (see [gateway proxy](gateway-proxy.md)).
 
 The user guide is [docs/AI-PROVIDERS.md](../AI-PROVIDERS.md). This document is the design view: how the switch works, and where the guide and the code don't match.
 
-Example: a bank runs Agent Prism on AWS. It sets `AI_PROVIDER=aws-bedrock`, `AWS_REGION=eu-west-1`, `AI_MODEL=<inference-profile ARN>` and `AWS_BEDROCK_ENDPOINT=<PrivateLink URL>`, and gives the task role `bedrock:Converse`. There's no key to store. Admin → AI service shows "Amazon Bedrock · platform identity (no static key)", and **Test connection** answers "OK" in 640 ms.
-
-Everything here reflects the current code.
+Example: a bank runs Agent Prism on AWS. It sets `AI_PROVIDER=aws-bedrock`, `AWS_REGION=eu-west-1`, `AI_MODEL=<inference-profile ARN>` and `AWS_BEDROCK_ENDPOINT=<PrivateLink URL>`, and gives the task role `bedrock:Converse`. There's no key to store. Admin → AI service shows "Amazon Bedrock · platform identity (no static key)", and Test connection answers "OK" in 640 ms.
 
 ## What we have today
 
@@ -34,10 +32,7 @@ Everything here reflects the current code.
 
 ## What it does
 
-- Lets each installation use the AI service its security team has already approved, including private endpoints and corporate gateways.
-- Avoids storing keys on the major clouds, by using the platform's identity.
-- Keeps AI off by default, so nothing leaves the installation unless an operator turns it on.
-- Shows exactly which setting is missing, and lets an admin test the connection, without ever showing a key.
+Each installation can use the AI service its security team has already signed off, including private endpoints and corporate gateways. On the major clouds it uses the platform's identity, so no key has to be stored. AI is off by default, so nothing leaves the installation until an operator turns it on. If something is misconfigured, the admin screen says exactly which setting is missing, and an admin can test the connection without ever seeing a key.
 
 ## Where the data comes from
 
@@ -83,7 +78,7 @@ Everything here reflects the current code.
 | Anthropic | `POST https://api.anthropic.com/v1/messages`, `anthropic-version: 2023-06-01` |
 | Others | `POST {baseUrl}/chat/completions`, with a Bearer key when there is one |
 
-3. Every HTTP call uses the timeout (`AI_TIMEOUT_MS`) and **refuses redirects**. Chat calls use temperature 0.2.
+3. Every HTTP call uses the timeout (`AI_TIMEOUT_MS`) and refuses redirects. Chat calls use temperature 0.2.
 4. A non-2xx answer throws "`<provider> returned HTTP <status>: <first 200 characters>`".
 5. Return the text, joining the content parts.
 
@@ -93,8 +88,8 @@ Credential objects (the Azure credential, Google auth, the Bedrock client) are m
 
 | Feature | On when |
 | --- | --- |
-| AI Advisor, Prompt Advisor | A provider is configured **and** the workspace's plan has `aiAdvisor` (Starter and above) |
-| Task classifier | A provider is configured **and** `LLM_CLASSIFIER_ENABLED=true` at startup |
+| AI Advisor, Prompt Advisor | A provider is configured and the workspace's plan has `aiAdvisor` (Starter and above) |
+| Task classifier | A provider is configured and `LLM_CLASSIFIER_ENABLED=true` at startup |
 | Connection test | A provider is configured; admin only |
 
 ## API
@@ -108,11 +103,11 @@ The AI Advisor and Prompt Advisor routes are in [AI Advisor and Prompt Advisor](
 
 ## Dashboard / UI
 
-- **Admin → AI service:** provider, model and how it signs in, any missing settings, and **Test connection**.
+- **Admin → AI service:** provider, model and how it signs in, any missing settings, and Test connection.
 - **Token Coach → AI Advisor panel:** the provider and model, or why it's unavailable.
 - **Admin → Machine learning model status:** the classifier's provider when it's on.
 
-## Changes by file
+## Code by file
 
 Where to find it:
 

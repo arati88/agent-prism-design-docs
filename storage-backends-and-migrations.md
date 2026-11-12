@@ -4,16 +4,14 @@
 
 Everything Agent Prism remembers is saved through one storage layer: workspaces, users, keys, connectors, runs, sessions, audit logs, Copilot data, ML models and so on. That layer has two interchangeable backends:
 
-- **File** (`STORAGE_BACKEND=file`, the default): everything in one JSON file, `data/app-state.json`. Nothing to install, so it's good for local development and demos. **Not for production.**
+- **File** (`STORAGE_BACKEND=file`, the default): everything in one JSON file, `data/app-state.json`. Nothing to install, so it's good for local development and demos. Not for production.
 - **Postgres** (`STORAGE_BACKEND=postgres` plus `DATABASE_URL`): real tables, indexes, transactions, connection pooling, TLS, and row-level security on the main tables. This is what production uses.
 
 The rest of the code never talks to either backend directly. It calls `src/saas-store.js`, which passes each call on to whichever backend is configured. So a route like `/api/ingest` calls `upsertTenantRuns(...)` and doesn't know or care where the run ends up.
 
-The Postgres tables are created and changed by **numbered migration files** in `db/migrations/`, applied in order and recorded so each runs only once.
+The Postgres tables are created and changed by numbered migration files in `db/migrations/`, applied in order and recorded so each runs only once.
 
 Example: a developer runs `npm start` with no settings and gets a working app with data in `data/app-state.json`. The hosted service sets `STORAGE_BACKEND=postgres`, `DATABASE_URL=postgres://…` and `RUN_MIGRATIONS_ON_STARTUP=true`. On boot it applies any new migrations, then serves traffic, and `/api/health/ready` only says "ready" once the database is prepared.
-
-This is how storage works in the current code.
 
 ## What we have today
 
@@ -32,12 +30,9 @@ This is how storage works in the current code.
 
 ## What it does
 
-- **Lets the same code run on either backend**, chosen by one setting.
-- **Keeps the file backend safe within one process**: atomic writes, a backup copy, and one write at a time.
-- **Keeps Postgres safe under load**: limited connection pool, query time limit, fail-fast when the pool is full, survives dropped connections, TLS.
-- **Upgrades the database schema by itself** at start-up, even with several servers starting at once.
-- **Adds a second layer of workspace isolation** in Postgres (row-level security) on the main tables.
-- **Deletes old data** per workspace according to its plan (data retention).
+The same code runs on either backend, picked with one setting. The file backend is kept safe within one process with atomic writes, a backup copy and one write at a time. Postgres copes with load: the connection pool is limited, queries have a time limit, requests fail fast when the pool is full, dropped connections don't take the server down, and TLS is supported.
+
+At start-up the server upgrades the database schema by itself, even when several servers start at once. Postgres also adds a second layer of workspace isolation with row-level security on the main tables, and old data is deleted per workspace according to its plan.
 
 ## Where the data comes from
 
@@ -83,7 +78,7 @@ Every table except `tenants` has a `tenant_id` pointing at its workspace. Deleti
 every call:  read the whole file  →  change it in memory  →  write the whole file
 ```
 
-- **One call at a time.** Two read-change-write calls overlapping would make the second one wipe out the first. Before this rule, 400 simultaneous ingests all answered 201 but only 7 runs were stored. `serializeFileStore` puts every file-store call in a single queue. This only works **inside one process**.
+- **One call at a time.** Two read-change-write calls overlapping would make the second one wipe out the first. Before this rule, 400 simultaneous ingests all answered 201 but only 7 runs were stored. `serializeFileStore` puts every file-store call in a single queue. This only works inside one process.
 - **Atomic write.** The new state goes to a temporary file, which then replaces the real one in one step (`rename`). A crash mid-write can't leave a half-written file.
 - **Backup.** After every write, the same content is also saved to `app-state.json.bak`. If the main file can't be read as JSON (manual edit, disk problem), the backup is used. If both are broken, every call fails with a clear "Manual recovery required" message.
 - **Size caps** on some lists, such as audit logs, prompt captures and the failed-ingest queue (2,000 items), so the file can't grow forever.
@@ -123,9 +118,9 @@ On top of every query filtering by `tenant_id`, Postgres itself can refuse to re
 | Tables | Rule |
 | --- | --- |
 | `agent_runs`, `connectors`, `audit_logs`, `prompt_captures`, `agent_definitions`, `agent_tools`, certification tables, Copilot tables, `agent_sessions`, `prompt_analyses` | Reading and updating only see rows of `app.current_tenant_id`. Inserting and deleting are allowed (the app sets the right workspace; retention deletes across workspaces) |
-| `users`, `api_keys`, `dashboard_sessions` | Same, except that with **no** workspace set, all rows are visible, because login has to look up a key or email before the workspace is known. These three are **forced**, so they apply even to the table owner |
+| `users`, `api_keys`, `dashboard_sessions` | Same, except that with no workspace set, all rows are visible, because login has to look up a key or email before the workspace is known. These three are forced, so they apply even to the table owner |
 
-Important: on the other tables RLS is only *enabled*, not *forced*. Postgres doesn't apply enabled-only RLS to the **table owner** or a superuser. If the app connects as the owner, which is usual on hosted Postgres, those rules protect other connections (BI tools, consoles) but **not the app itself**, unless the app's database role is set to `NOBYPASSRLS` (migration `004` explains this).
+Important: on the other tables RLS is only *enabled*, not *forced*. Postgres doesn't apply enabled-only RLS to the table owner or a superuser. If the app connects as the owner, which is usual on hosted Postgres, those rules protect other connections (BI tools, consoles) but not the app itself, unless the app's database role is set to `NOBYPASSRLS` (migration `004` explains this).
 
 ### Migrations
 
@@ -133,7 +128,7 @@ Important: on the other tables RLS is only *enabled*, not *forced*. Postgres doe
 
 1. Creates `schema_migrations` (file name + time applied) if it doesn't exist.
 2. Lists `db/migrations/*.sql` in alphabetical order, so the number prefix sets the order.
-3. Skips files already recorded, and applies each new one **inside a transaction**. If one fails, it's rolled back and the run stops, so later migrations don't run on top of a broken one.
+3. Skips files already recorded, and applies each new one inside a transaction. If one fails, it's rolled back and the run stops, so later migrations don't run on top of a broken one.
 
 Two ways to run it:
 
@@ -144,12 +139,12 @@ Two ways to run it:
 
 `prepareDatabase()` in `server.js`:
 
-1. Takes a Postgres **advisory lock**, so if several servers or workers start at once, they take turns. The second finds nothing left to do. Without this, simultaneous `CREATE TABLE`s failed with duplicate-object errors.
+1. Takes a Postgres advisory lock, so if several servers or workers start at once, they take turns. The second finds nothing left to do. Without this, simultaneous `CREATE TABLE`s failed with duplicate-object errors.
 2. Applies pending migrations, if `RUN_MIGRATIONS_ON_STARTUP=true`.
 3. Runs `ensureSchemaPatches()`: a list of `ADD COLUMN IF NOT EXISTS` / `CREATE TABLE IF NOT EXISTS` statements that bring older databases up to date even if some migrations were never applied. It's safe to run on an up-to-date database.
 4. Releases the lock.
 
-While this runs, `GET /api/health/ready` answers **503 not ready** (`databasePrepared: false`), so a load balancer doesn't send traffic yet. If preparation fails in production, the server **exits**, so the platform shows the failure and restarts it, rather than serving on a half-upgraded schema. Jobs that touch the database (retention, legacy-key clean-up) wait for preparation to finish.
+While this runs, `GET /api/health/ready` answers 503 not ready (`databasePrepared: false`), so a load balancer doesn't send traffic yet. If preparation fails in production, the server exits, so the platform shows the failure and restarts it, rather than serving on a half-upgraded schema. Jobs that touch the database (retention, legacy-key clean-up) wait for preparation to finish.
 
 ### Data retention
 
@@ -160,7 +155,7 @@ days kept = the smaller of:  the plan's retention   (Free 30, Starter 90, Pro 36
                              DATA_RETENTION_DAYS    (installation-wide maximum, if set)
 ```
 
-- Plan retention only applies with a **valid license installed**. Without one, or in development, only `DATA_RETENTION_DAYS` deletes anything, so a licensing problem never deletes data.
+- Plan retention only applies with a valid licence installed. Without one, or in development, only `DATA_RETENTION_DAYS` deletes anything, so a licensing problem never deletes data.
 - Older runs, prompt captures and finished sessions are deleted (`applyDataRetention`). Sessions still running or idle are kept.
 
 ## API
@@ -189,7 +184,7 @@ Storage has no API of its own. Related endpoints:
 
 There's no storage screen. Retention appears as the plan's "data retention" limit (from `GET /api/tenant`). Readiness is used by load balancers and container platforms, not people.
 
-## Changes by file
+## Code by file
 
 Storage code, by file:
 

@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This document covers how **people** get into Agent Prism and how their accounts are managed:
+This document covers how people get into Agent Prism and how their accounts are managed:
 
 - **Password sign-in.** Email and password, giving a 7-day dashboard session.
 - **Single sign-on (SSO).** OpenID Connect with the customer's identity provider (Okta, Entra ID, Keycloak and so on). Roles can come from the provider's groups.
@@ -13,9 +13,7 @@ This document covers how **people** get into Agent Prism and how their accounts 
 
 How a request is matched to a workspace, API keys, roles and permissions is in [multi-tenancy and API keys](multi-tenancy-and-api-keys.md).
 
-Example: Acme connects Okta. A new engineer signs in through Okta for the first time. Okta says the address is verified, and the engineer is in the `ap-admins` group, which is mapped with `OIDC_ADMIN_GROUPS`. Agent Prism creates the account in Acme's workspace, checks there's a free seat, gives the account the **admin** role and starts a session. Months later Okta's SCIM sends `active: false`, and the engineer's sessions stop working on the next request.
-
-This covers sign-in and accounts as they work in the code today.
+Example: Acme connects Okta. A new engineer signs in through Okta for the first time. Okta says the address is verified, and the engineer is in the `ap-admins` group, which is mapped with `OIDC_ADMIN_GROUPS`. Agent Prism creates the account in Acme's workspace, checks there's a free seat, gives the account the admin role and starts a session. Months later Okta's SCIM sends `active: false`, and the engineer's sessions stop working on the next request.
 
 ## What we have today
 
@@ -30,11 +28,7 @@ This covers sign-in and accounts as they work in the code today.
 
 ## What it does
 
-- Lets people sign in with a password or the company's identity provider.
-- Lets the company's directory decide who's in and what role they get (SSO groups), and turns accounts off when people leave (SCIM).
-- Lets admins add, invite, change and deactivate people without a platform operator.
-- Makes role changes and deactivations take effect immediately.
-- Never lets a workspace lose its last owner.
+People sign in with a password or through the company's identity provider. The company's directory can decide who gets in and with what role (SSO groups), and SCIM turns accounts off when people leave. Admins can add, invite, change and deactivate people themselves, without asking a platform operator. Role changes and deactivations apply straight away, and a workspace can never lose its last owner.
 
 ## Where the data comes from
 
@@ -56,8 +50,8 @@ This covers sign-in and accounts as they work in the code today.
 1. Rate limit: 20 a minute per IP, shared with the other sign-in routes.
 2. The email must be 3–256 characters and the password 8–256.
 3. If the email is the demo email or the demo viewer email, that demo account is created or refreshed first (section 6).
-4. Find **active** users with that email (any workspace) whose password matches, in an **active** workspace.
-5. Create a dashboard session: a random `aps_` token, stored as a hash, valid for **7 days**.
+4. Find active users with that email (any workspace) whose password matches, in an active workspace.
+5. Create a dashboard session: a random `aps_` token, stored as a hash, valid for 7 days.
 6. Set the cookie `aps_session` (HttpOnly, SameSite=Lax, `Secure` in production, 7 days). The token is also returned as `sessionToken`, for use as the `X-Session-Token` header when cookies aren't available.
 7. Record the last-login time and a `Dashboard Login` audit event.
 
@@ -94,9 +88,9 @@ A wrong email or password always gives `401 "Invalid email or password."`.
 
 The `id_token`'s signature isn't checked again, because it came straight from the provider's token endpoint over TLS (allowed by OIDC Core 3.1.3.7). Its claims are checked as above.
 
-**Account:** the person is matched by email **within the target workspace only**. If there's no match, a new account is created with role `member` (just-in-time sign-up). If the email exists in a different workspace, a warning is logged. If an SSO sign-in matches an account that has a password, that's logged too. When group mapping gives a role different from the stored one, the role is updated and audited. Then a session is created, as for a password sign-in, with an `SSO Login` audit event.
+**Account:** the person is matched by email within the target workspace only. If there's no match, a new account is created with role `member` (just-in-time sign-up). If the email exists in a different workspace, a warning is logged. If an SSO sign-in matches an account that has a password, that's logged too. When group mapping gives a role different from the stored one, the role is updated and audited. Then a session is created, as for a password sign-in, with an `SSO Login` audit event.
 
-**Group mapping:** when any `OIDC_*_GROUPS` is set, the person gets the **highest** role whose group they're in. Someone in none of them is refused. With no mapping, roles are managed in Agent Prism.
+**Group mapping:** when any `OIDC_*_GROUPS` is set, the person gets the highest role whose group they're in. Someone in none of them is refused. With no mapping, roles are managed in Agent Prism.
 
 ### 3. Users, invites and password resets
 
@@ -104,7 +98,7 @@ Owners and admins manage people on the Users page (`users.manage`):
 
 | Action | Rules |
 | --- | --- |
-| Add (`POST /api/tenant/users`) | Valid email up to 256 characters. Role defaults to member, and you can only give a role you're allowed to assign. There must be a free seat. Duplicates get `409`. Returns a **set-password link** valid for **7 days** |
+| Add (`POST /api/tenant/users`) | Valid email up to 256 characters. Role defaults to member, and you can only give a role you're allowed to assign. There must be a free seat. Duplicates get `409`. Returns a set-password link valid for 7 days |
 | New link (`POST /api/tenant/users/:id/invite`) | For a first invite again, or a password reset. A new link cancels the old one. Not for deactivated users |
 | Change (`PATCH /api/tenant/users/:id`) | Role, active and name (1–128 characters) |
 
@@ -114,9 +108,9 @@ The role rules:
 - Nobody can change their own role or deactivate themselves.
 - A workspace must always keep one active owner.
 - Reactivating someone needs a free seat.
-- A role change or deactivation **signs the person out everywhere** straight away.
+- A role change or deactivation signs the person out everywhere straight away.
 
-The set-password link carries its token in the URL **fragment** (`#invite=…`), so it never reaches server logs. `GET /api/auth/invite?token=` shows who the link is for. `POST /api/auth/accept-invite` sets the password, which must be **12–256 characters**. The link works once, and accepting it signs the person out of every other session and into a new one.
+The set-password link carries its token in the URL fragment (`#invite=…`), so it never reaches server logs. `GET /api/auth/invite?token=` shows who the link is for. `POST /api/auth/accept-invite` sets the password, which must be 12–256 characters. The link works once, and accepting it signs the person out of every other session and into a new one.
 
 ### 4. SCIM 2.0
 
@@ -126,7 +120,7 @@ The identity provider uses a workspace API key (`acp_…`) as its SCIM bearer to
 | --- | --- |
 | `GET /scim/v2/ServiceProviderConfig` | Capabilities: patch yes, filter yes (up to 200), bulk, sort, etag and password change no |
 | `GET /scim/v2/Users?filter=userName eq "x"` | List users. That's the only filter supported |
-| `POST /scim/v2/Users` | Create, with `userName` or `emails[0].value`. Always role **member**. Needs a seat if active. Duplicates get `409 uniqueness` |
+| `POST /scim/v2/Users` | Create, with `userName` or `emails[0].value`. Always role member. Needs a seat if active. Duplicates get `409 uniqueness` |
 | `GET /scim/v2/Users/:id` | One user |
 | `PUT /scim/v2/Users/:id` | Replace name, active and external id. Reactivating needs a seat |
 | `PATCH /scim/v2/Users/:id` | `replace`/`add` of `active`, or a no-path value with `active` and `name`. Other operations are ignored |
@@ -143,16 +137,16 @@ Every change is audited (`SCIM User Provisioned/Updated/Deactivated/Deleted`). A
 
 ### 6. Demo sign-in
 
-- `GET /api/login-config` is public and returns `ssoEnabled`, `ssoOnly`, `demoEmail` and **`demoPassword`**. When both demo values are set, the sign-in screen fills them in and **signs in automatically**.
+- `GET /api/login-config` is public and returns `ssoEnabled`, `ssoOnly`, `demoEmail` and `demoPassword`. When both demo values are set, the sign-in screen fills them in and signs in automatically.
 - `POST /api/auth/demo-login`, or a password sign-in with the demo email, runs `ensureDemoUser`:
-  - If an account with that email exists (in any workspace), its password is reset to `DEMO_PASSWORD`, its role is capped at `DEMO_ROLE`, and its workspace's plan is raised from free or starter to **enterprise-trial**.
-  - Otherwise the account is created in the **oldest active workspace**.
+  - If an account with that email exists (in any workspace), its password is reset to `DEMO_PASSWORD`, its role is capped at `DEMO_ROLE`, and its workspace's plan is raised from free or starter to enterprise-trial.
+  - Otherwise the account is created in the oldest active workspace.
 - The demo viewer login works the same way, with role viewer, in the same workspace.
 
 ### 7. OAuth token exchange (for SDKs)
 
-- `POST /api/oauth/token` `{ grant_type: "client_credentials", client_secret: "<acp_ key>" }`. Rate limited and checked against the key's IP allowlist. It returns a **1-hour** HS256 access token (workspace, key id, scopes) and a **30-day** refresh token. `OAuth Token Issued` is audited. `client_id` is ignored.
-- `POST /api/oauth/refresh` `{ refresh_token }` works only while the token, its API key and the workspace are all active. It **rotates** the refresh token (the old one is revoked) and returns a new access token.
+- `POST /api/oauth/token` `{ grant_type: "client_credentials", client_secret: "<acp_ key>" }`. Rate limited and checked against the key's IP allowlist. It returns a 1-hour HS256 access token (workspace, key id, scopes) and a 30-day refresh token. `OAuth Token Issued` is audited. `client_id` is ignored.
+- `POST /api/oauth/refresh` `{ refresh_token }` works only while the token, its API key and the workspace are all active. It rotates the refresh token (the old one is revoked) and returns a new access token.
 - A request with an access token keeps the key's read-only flag, and is refused once the key is revoked (see [multi-tenancy](multi-tenancy-and-api-keys.md)).
 
 ## API
@@ -177,7 +171,7 @@ Every change is audited (`SCIM User Provisioned/Updated/Deactivated/Deleted`). A
 - **Set-password screen**, opened from an invite or reset link. It shows who the link is for and asks for a password of 12 or more characters.
 - **Admin → Users.** List with role, active, invite pending and its expiry, last sign-in; add a person; copy the set-password link; change role; deactivate or reactivate.
 
-## Changes by file
+## Code by file
 
 Sign-in and account code lives in:
 
@@ -212,6 +206,6 @@ Not tested yet, and worth adding:
 Gaps in sign-in, SSO and SCIM:
 
 1. **`SSO_ONLY` only hides the password form.** The server still accepts `POST /api/auth/login`, so anyone with a password, including one set by invite or by the platform admin, can still sign in with it. A customer that requires SSO (and its MFA) doesn't really get it.
-2. **The demo login can expose and change a real workspace.** When `DEMO_EMAIL` and `DEMO_PASSWORD` are set, the password is public (`/api/login-config`) and the sign-in screen uses it automatically. The demo account is created in the **oldest active workspace**, which on a shared installation is a real customer's, and that workspace's plan is raised to enterprise-trial. If `DEMO_EMAIL` matches an existing person, their password is reset and their role lowered.
+2. **The demo login can expose and change a real workspace.** When `DEMO_EMAIL` and `DEMO_PASSWORD` are set, the password is public (`/api/login-config`) and the sign-in screen uses it automatically. The demo account is created in the oldest active workspace, which on a shared installation is a real customer's, and that workspace's plan is raised to enterprise-trial. If `DEMO_EMAIL` matches an existing person, their password is reset and their role lowered.
 3. **Anyone who can sign in to the identity provider gets an account.** Without group mapping, every person the provider lets through is created as a member (seats permitting). Nothing requires them to have been provisioned or invited first.
 4. **No multi-factor authentication for password accounts.** MFA is available only through the identity provider when SSO is used.

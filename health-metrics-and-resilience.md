@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This document covers how Agent Prism is **run and watched** in production:
+This document covers how Agent Prism is run and watched in production:
 
 - **Startup checks** (`validateConfig`). The server refuses to start with unsafe production settings, such as the default admin secret or no encryption key, and warns about risky ones. On Postgres it then runs migrations and schema patches under a lock.
 - **Health checks.** `/api/health/live` (is the process up), `/api/health/ready` (should traffic come here) and `/api/health` (a fuller status).
@@ -12,9 +12,7 @@ This document covers how Agent Prism is **run and watched** in production:
 - **Cluster mode** (`npm run cluster`). One worker per CPU behind a primary process, which restarts any worker that exits.
 - **Logs.** One JSON line per request, and error lines with secrets masked.
 
-Example: Anthropic's API stops answering. Five gateway calls in a row time out, so the `anthropic` circuit **opens**. An alert goes to `CB_ALERT_WEBHOOK_URL`, and for the next 30 seconds `/v1/messages` fails straight away with "temporarily unavailable". `/api/health/ready` now returns `503`. After 30 seconds the next call is let through as a probe, and after 2 successful probes the circuit **closes** with another alert.
-
-It describes how these work in the code right now.
+Example: Anthropic's API stops answering. Five gateway calls in a row time out, so the `anthropic` circuit opens. An alert goes to `CB_ALERT_WEBHOOK_URL`, and for the next 30 seconds `/v1/messages` fails straight away with "temporarily unavailable". `/api/health/ready` now returns `503`. After 30 seconds the next call is let through as a probe, and after 2 successful probes the circuit closes with another alert.
 
 ## What we have today
 
@@ -32,12 +30,9 @@ It describes how these work in the code right now.
 
 ## What it does
 
-- Stops a misconfigured production server from starting, instead of letting it run unsafely.
-- Tells a load balancer or Kubernetes when an instance is alive, when it's ready, and when it's draining.
-- Gives the operations team numbers to graph and alert on.
-- Protects the gateway from piling up requests on a provider that's down.
-- Lets deploys and restarts happen without cutting off requests.
-- Uses every CPU core on one machine, and recovers from a crashed worker.
+A production server with a bad configuration refuses to start instead of running unsafely. Load balancers and Kubernetes can tell when an instance is alive, ready or draining, and the operations team gets numbers to graph and alert on.
+
+The gateway doesn't pile up requests on a provider that's down. Deploys and restarts don't cut off requests in flight, and cluster mode uses every CPU core on a machine and replaces a worker that crashes.
 
 ## Where the data comes from
 
@@ -86,7 +81,7 @@ Then, on Postgres, `prepareDatabase()` takes an advisory lock, runs migrations a
 | Route | Auth | Returns | 200 when |
 | --- | --- | --- | --- |
 | `GET /api/health/live` | Public | `{ ok, pid, uptime }` | Always (the process can answer) |
-| `GET /api/health/ready` | Public | `ready`, `db { ok, latencyMs, error? }`, `circuits`, `bootstrapped`, `databasePrepared` | The database answers, **no circuit is open**, preparation is finished, and the server isn't shutting down. Otherwise `503`. In production the database error is hidden ("database unavailable") |
+| `GET /api/health/ready` | Public | `ready`, `db { ok, latencyMs, error? }`, `circuits`, `bootstrapped`, `databasePrepared` | The database answers, no circuit is open, preparation is finished, and the server isn't shutting down. Otherwise `503`. In production the database error is hidden ("database unavailable") |
 | `GET /api/health` | Public | `ok`, storage backend, `bootstrapped`, `db` (with the driver's error), `circuits`, uptime, memory in MB, pid | The database answers and no circuit is open. Otherwise `503` |
 
 The database check is `SELECT 1`. The file backend always counts as healthy.
@@ -112,7 +107,7 @@ CLOSED ── failure count reaches 5 ──► OPEN ── 30 s passed, next ca
 ```
 
 - Each gateway call to a provider goes through `breakers.<provider>.execute(...)`: Anthropic for `/v1/messages`, OpenAI for `/v1/responses` and `/v1/chat/completions`, Azure for `/v1/azure/*`.
-- A **failure** is the call **throwing**: a network error, a refused redirect, or a timeout from `gatewayFetch`.
+- A failure is the call throwing: a network error, a refused redirect, or a timeout from `gatewayFetch`.
 - Any success resets the failure count.
 - While open, calls fail at once with `isCircuitOpen` and "Retry after Ns", and the gateway returns an error (see [gateway proxy](gateway-proxy.md)).
 - Opening and closing are logged as JSON (`circuit_open`, `circuit_closed`) and sent to `CB_ALERT_WEBHOOK_URL` with a 5-second timeout, best effort.
@@ -156,7 +151,7 @@ On SIGTERM or SIGINT, once only:
 
 There's no operations screen. Health and metrics are for the platform team's load balancer, Kubernetes probes and Prometheus/Grafana. `/api/metrics/summary` returns `platformStatus`, which reflects the server's own settings, not the workspace's connectors.
 
-## Changes by file
+## Code by file
 
 Where the operations code lives:
 
@@ -190,7 +185,7 @@ Not tested yet, and worth adding:
 
 Operational risks I found:
 
-1. **One provider outage takes the whole product out of rotation.** Readiness and `/api/health` return `503` whenever **any** circuit is open. A load balancer or Kubernetes then stops sending traffic to every instance, so the dashboard, ingest and the other providers' gateways all go down because, say, Anthropic is unreachable.
-2. **Provider error responses never open the circuit.** Only thrown errors (network failures, timeouts) count. A provider returning `500`, `502`, `503`, `529 overloaded` or `429` counts as a **success** and resets the failure count, so the breaker does nothing during the most common kind of outage.
+1. **One provider outage takes the whole product out of rotation.** Readiness and `/api/health` return `503` whenever any circuit is open. A load balancer or Kubernetes then stops sending traffic to every instance, so the dashboard, ingest and the other providers' gateways all go down because, say, Anthropic is unreachable.
+2. **Provider error responses never open the circuit.** Only thrown errors (network failures, timeouts) count. A provider returning `500`, `502`, `503`, `529 overloaded` or `429` counts as a success and resets the failure count, so the breaker does nothing during the most common kind of outage.
 3. **Prometheus needs the platform admin secret.** `/metrics` is protected by `X-Admin-Secret`, the same secret that can create workspaces and keys, so the monitoring system has to hold the most powerful credential.
 4. **`/api/health` is public and reveals details.** It returns the database driver's error message (which can name internal hosts), the storage backend, the process id and memory, even in production. Readiness hides these, but this route doesn't.

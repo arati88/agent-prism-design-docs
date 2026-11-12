@@ -8,11 +8,9 @@ Agent Prism has three advice features:
 - **Prompt Advisor.** It sends one prompt to an LLM and gets back a score out of 10, its main weakness, a rewritten prompt and an estimate of how many input tokens the rewrite saves (0–60%). The dashboard turns that into a monthly and annual dollar saving. "Apply this rewrite" copies the rewrite and logs the estimated saving.
 - **Model fitness.** Fixed rules say whether a run's model suits its task type: a small model for simple questions, a large one for reasoning. Mismatches are listed on the dashboard and counted in `/api/model-fitness`.
 
-The two advisors use **the organisation's own LLM**, set with `AI_PROVIDER` (Azure OpenAI, Amazon Bedrock, Google Vertex AI, an OpenAI-compatible gateway, OpenAI, Anthropic, Ollama or OpenRouter). Nothing is sent anywhere until a provider is set. Both need a plan that includes `aiAdvisor` (Starter and above).
+The two advisors use the organisation's own LLM, set with `AI_PROVIDER` (Azure OpenAI, Amazon Bedrock, Google Vertex AI, an OpenAI-compatible gateway, OpenAI, Anthropic, Ollama or OpenRouter). Nothing is sent anywhere until a provider is set. Both need a plan that includes `aiAdvisor` (Starter and above).
 
-Example: the Prompt Advisor scores "Summarise this" at 3/10. The weakness is that it gives no audience, length or format. The rewrite is "Summarise the attached incident report for an engineering manager in 5 bullet points, under 120 words", with a 25% token saving. The run had 8,000 input tokens and cost $0.04, and its workflow is `customer-ops`, which the dashboard assumes runs 150,000 times a month. So the card shows 2,000 tokens saved a run, $0.04 → $0.03 a run, **$1,500 a month** and $18,000 a year.
-
-Both advisors are described as they're coded right now.
+Example: the Prompt Advisor scores "Summarise this" at 3/10. The weakness is that it gives no audience, length or format. The rewrite is "Summarise the attached incident report for an engineering manager in 5 bullet points, under 120 words", with a 25% token saving. The run had 8,000 input tokens and cost $0.04, and its workflow is `customer-ops`, which the dashboard assumes runs 150,000 times a month. So the card shows 2,000 tokens saved a run, $0.04 → $0.03 a run, $1,500 a month and $18,000 a year.
 
 ## What we have today
 
@@ -28,10 +26,7 @@ Both advisors are described as they're coded right now.
 
 ## What it does
 
-- Gives a business owner a short, plain-language list of what to fix next, based on their own telemetry.
-- Shows a team how to write each prompt better, and what that's worth in money.
-- Flags runs that pay for a large model on a simple task, or risk quality with a small model on a hard one.
-- Runs on the LLM service the client's security team has already approved.
+The AI Advisor gives a business owner a short list of what to fix next, in plain language, based on their own telemetry. The Prompt Advisor shows a team how to write each prompt better and what that's worth in money. Model fitness flags runs that pay for a large model on a simple task, or risk quality with a small model on a hard one. All of it runs on the LLM service the client's security team has already approved.
 
 ## Where the data comes from
 
@@ -58,10 +53,10 @@ Response: `summary`, `confidence`, `priority`, `recommendations[]` (`title`, `wh
 ### 2. Prompt Advisor (`POST /api/advisor` `{ prompt, runId? }`)
 
 1. Check the plan (`402`), check an LLM is configured (`503`), and check the prompt: it must be present (`400`) and at most 50,000 characters (`413`). The `runId`, if sent, must be at most 128 characters.
-2. If `runId` is given and an analysis of the **same prompt text** (SHA-256) was saved, return it with `cached: true`.
+2. If `runId` is given and an analysis of the same prompt text (SHA-256) was saved, return it with `cached: true`.
 3. Send this to the LLM: "You are a prompt engineering expert…", the expected JSON (`score`, `weakness`, `rewrite`, `tokenSavingsPct`), then the prompt text. The answer can be up to 300 tokens.
 4. Take the JSON out of the answer. If it can't be read, return `score: 0` and a "Could not parse" weakness.
-5. Save the analysis for that run only when **prompt capture** is on, because the rewrite is prompt text.
+5. Save the analysis for that run only when prompt capture is on, because the rewrite is prompt text.
 
 The dashboard's Prompt Advisor tab analyses up to a page of runs, a few at a time with a pause between batches. For each card:
 
@@ -90,13 +85,13 @@ monthly saving       = (now − after) × monthly runs;  annual = monthly × 12
 
 ### 3. "Apply this rewrite" (`POST /api/advisor/apply`)
 
-When someone clicks **Apply this rewrite**, clicks **Apply all**, or **copies text from the rewrite box**, the dashboard:
+When someone clicks Apply this rewrite, clicks Apply all, or copies text from the rewrite box, the dashboard:
 
 1. Copies the rewrite to the clipboard (on click only).
 2. Adds the card's monthly saving to the savings bar.
 3. Sends `runId`, `tokensIn`, `runsPerMonth`, `tokenSavingsPct` and `costUsdPerRun` to `/api/advisor/apply`.
 
-The server recalculates the monthly saving from those values in the same way. It also works out a **15% commission** on that saving (`COMMISSION_RATE` in `server.js`), and writes an `Advisor Rewrite Applied` audit event with the saving, the commission and the lengths of both prompts. It returns `{ status: "applied", estimatedMonthlySavingsUsd }`. Nothing about the agent or its prompt actually changes.
+The server recalculates the monthly saving from those values in the same way. It also works out a 15% commission on that saving (`COMMISSION_RATE` in `server.js`), and writes an `Advisor Rewrite Applied` audit event with the saving, the commission and the lengths of both prompts. It returns `{ status: "applied", estimatedMonthlySavingsUsd }`. Nothing about the agent or its prompt actually changes.
 
 ### 4. Model fitness
 
@@ -143,10 +138,10 @@ The keyword rules for task type are checked in this order: code, reasoning, summ
 ## Dashboard / UI
 
 - **AI Advisor panel.** Summary, confidence and priority, the recommendation cards and the questions. If it's unavailable, it says why (plan, provider not configured, or the error).
-- **Prompt Advisor tab.** Progress ("Analyzed 3 / 10"). One card per prompt with the agent, model and tokens, the prompt, a score bar, "Apply this rewrite and save" (tokens saved, cost per run now → after, monthly runs, monthly and annual saving), Weakness and Suggested rewrite. Then an **Apply this rewrite** button, an **Apply all** button, and a running savings total.
+- **Prompt Advisor tab.** Progress ("Analyzed 3 / 10"). One card per prompt with the agent, model and tokens, the prompt, a score bar, "Apply this rewrite and save" (tokens saved, cost per run now → after, monthly runs, monthly and annual saving), Weakness and Suggested rewrite. Then an Apply this rewrite button, an Apply all button, and a running savings total.
 - **Model mismatches.** Runs on the wrong model tier, with the recommended model.
 
-## Changes by file
+## Code by file
 
 The advisor code is in these files:
 
@@ -178,7 +173,7 @@ Not tested yet, and worth adding:
 
 Issues I found, starting with the one that matters most:
 
-1. **Security: the Prompt Advisor shows prompt text without escaping it.** Each card puts the first 120 characters of the prompt straight into the page (`public/app.js`, the card header), with no `escapeHtml`. Prompts come from run breadcrumbs, notes and gateway captures, so a run whose text contains HTML is shown as live HTML to anyone who opens the Prompt Advisor. The dashboard's Content-Security-Policy (`script-src 'self'`, no inline scripts) stops injected **script** from running, but injected markup (fake text, links, images from `data:`) still appears in the page. The `score` from the LLM's answer is also put into the card without escaping. The server doesn't check that it's a number, and a prompt can tell the advisor what to answer (limitation 2), so this is a second way in. The agent name, model, weakness and rewrite **are** escaped.
+1. **Security: the Prompt Advisor shows prompt text without escaping it.** Each card puts the first 120 characters of the prompt straight into the page (`public/app.js`, the card header), with no `escapeHtml`. Prompts come from run breadcrumbs, notes and gateway captures, so a run whose text contains HTML is shown as live HTML to anyone who opens the Prompt Advisor. The dashboard's Content-Security-Policy (`script-src 'self'`, no inline scripts) stops injected script from running, but injected markup (fake text, links, images from `data:`) still appears in the page. The `score` from the LLM's answer is also put into the card without escaping. The server doesn't check that it's a number, and a prompt can tell the advisor what to answer (limitation 2), so this is a second way in. The agent name, model, weakness and rewrite are escaped.
 2. **The Prompt Advisor sends prompt text to the LLM without removing personal data.** The task classifier scrubs emails, card numbers, phone numbers and so on before sending text out (`scrubPiiDeep`), but `/api/advisor` sends the prompt as it is. The prompt is also pasted into the instructions with no `<agent_content>`-style wrapper, so a prompt can tell the advisor what score to give.
-3. **The monthly savings are mostly assumptions.** The monthly run count is a fixed table in the browser (for example 150,000 a month for `customer-ops`, and 30,000 for anything else), not the workspace's real run rate. The savings % is the LLM's own guess. Cost per input token is the **whole** run cost divided by input tokens, so output cost is counted as if the rewrite saved it too. A $1,500/month figure can come from a single run.
-4. **A 15% commission is worked out and recorded, but never shown.** `/api/advisor/apply` calculates 15% of the estimated saving and writes it to the workspace's audit log. The dashboard never mentions a commission. It's logged when someone clicks Apply, clicks Apply all, or simply **copies text from the rewrite box** (the code comment says "charge commission even without clicking Apply"). The rate is fixed in code. The amounts come from numbers the browser sends, which the server doesn't check against the run. The audit actor is the workspace name, not the person.
+3. **The monthly savings are mostly assumptions.** The monthly run count is a fixed table in the browser (for example 150,000 a month for `customer-ops`, and 30,000 for anything else), not the workspace's real run rate. The savings % is the LLM's own guess. Cost per input token is the whole run cost divided by input tokens, so output cost is counted as if the rewrite saved it too. A $1,500/month figure can come from a single run.
+4. **A 15% commission is worked out and recorded, but never shown.** `/api/advisor/apply` calculates 15% of the estimated saving and writes it to the workspace's audit log. The dashboard never mentions a commission. It's logged when someone clicks Apply, clicks Apply all, or simply copies text from the rewrite box (the code comment says "charge commission even without clicking Apply"). The rate is fixed in code. The amounts come from numbers the browser sends, which the server doesn't check against the run. The audit actor is the workspace name, not the person.

@@ -2,21 +2,19 @@
 
 ## Introduction
 
-Agent Prism stores provider credentials for each workspace: Anthropic, OpenAI and Azure keys for the gateway, the GitHub token for Copilot, and the SIEM signing secret. These are **encrypted** using **envelope encryption**:
+Agent Prism stores provider credentials for each workspace: Anthropic, OpenAI and Azure keys for the gateway, the GitHub token for Copilot, and the SIEM signing secret. These are encrypted using envelope encryption:
 
-- Each workspace has its own random **data encryption key (DEK)**. Connector secrets are encrypted with it using AES-256-GCM.
-- The DEK is stored only in **wrapped** (encrypted) form. What wraps it depends on the workspace:
+- Each workspace has its own random data encryption key (DEK). Connector secrets are encrypted with it using AES-256-GCM.
+- The DEK is stored only in wrapped (encrypted) form. What wraps it depends on the workspace:
 
 | Mode | DEK is wrapped with | Who can decrypt |
 | --- | --- | --- |
-| **Platform-managed** (default) | The installation's master key, `ENCRYPTION_KEY` | The server, at any time |
-| **Customer-managed (BYOK)** | A key derived from a secret **only the customer has** | The server only while the workspace is **unsealed**: after an owner enters the secret, for 30 minutes, in that server process's memory |
+| Platform-managed (default) | The installation's master key, `ENCRYPTION_KEY` | The server, at any time |
+| Customer-managed (BYOK) | A key derived from a secret only the customer has | The server only while the workspace is unsealed: after an owner enters the secret, for 30 minutes, in that server process's memory |
 
-Agent Prism never stores a BYOK workspace's secret. After a restart, or after 30 minutes, the workspace is **sealed** again. Its stored credentials can't be decrypted, so the gateway returns `423` until an owner unseals it.
+Agent Prism never stores a BYOK workspace's secret. After a restart, or after 30 minutes, the workspace is sealed again. Its stored credentials can't be decrypted, so the gateway returns `423` until an owner unseals it.
 
 Example: Acme's owner sends `POST /api/tenant/encryption-key` with a 64-character hex key from `openssl rand -hex 32`. The workspace's DEK is re-wrapped with that key and the workspace becomes customer-managed. It stays unsealed for 30 minutes. The next morning, after a redeploy, Acme's agents get `423 tenant_encryption_sealed` from `/v1/messages` until the owner sends `POST /api/tenant/encryption-key/unseal` with the same key.
-
-This is how encryption works in the current code.
 
 ## What we have today
 
@@ -31,16 +29,13 @@ This is how encryption works in the current code.
 
 ## What it does
 
-- Keeps provider keys unreadable in the database, in backups and in the JSON file.
-- Gives each workspace its own key, so one workspace's secrets can't be decrypted with another's key.
-- Lets a customer hold the key themselves (BYOK): without them, the operator can't read their stored credentials.
-- Detects tampering: GCM refuses changed ciphertext.
+Provider keys can't be read from the database, from backups or from the JSON file. Each workspace has its own key, so one workspace's secrets can't be decrypted with another's. A customer can also hold the key themselves (BYOK), and then the operator can't read their stored credentials without them. Tampering is caught too, because GCM refuses ciphertext that has been changed.
 
 ## Where the data comes from
 
 | Input | Use |
 | --- | --- |
-| `ENCRYPTION_KEY` | The master key. 64 hex characters are used directly; anything else is hashed with SHA-256. **Required in production** |
+| `ENCRYPTION_KEY` | The master key. 64 hex characters are used directly; anything else is hashed with SHA-256. Required in production |
 | `customerKey` (in the request) | The BYOK secret. 16 or more characters. 64 hex characters are used directly; anything else goes through PBKDF2-SHA256 (210,000 rounds) with a random salt saved for the workspace |
 | `TENANT_KEY_UNSEAL_TTL_MS` | How long an unsealed DEK stays in memory (default 1,800,000 ms) |
 
@@ -51,7 +46,7 @@ This is how encryption works in the current code.
 ### 1. A workspace's DEK
 
 - The first time a workspace's DEK is needed, a random 32-byte DEK is created, wrapped with the master key and saved. Saving uses a "claim if still empty" update, so two requests at once can't create two DEKs.
-- Connector secrets saved under the **older scheme** (encrypted straight with the master key) are re-encrypted with the new DEK at that point.
+- Connector secrets saved under the older scheme (encrypted straight with the master key) are re-encrypted with the new DEK at that point.
 
 ### 2. Saving and reading a connector secret
 
@@ -67,14 +62,14 @@ This is how encryption works in the current code.
 
 ### 3. Switching to BYOK (`POST /api/tenant/encryption-key`)
 
-1. The caller must be signed in to the dashboard, be an owner or admin, **and** hold `data.erase`. That permission is owner-only, so in practice only owners pass.
+1. The caller must be signed in to the dashboard, be an owner or admin, and hold `data.erase`. That permission is owner-only, so in practice only owners pass.
 2. `customerKey` must be 16 or more characters, or the request is refused with `422`.
-3. The workspace's **current** DEK is resolved: unwrapped with the master key, or taken from the cache if the workspace is already customer-managed.
-4. A new salt is made, the wrapping key is derived from `customerKey`, and the **same DEK** is re-wrapped with it. `key_management` is set to `customer`.
+3. The workspace's current DEK is resolved: unwrapped with the master key, or taken from the cache if the workspace is already customer-managed.
+4. A new salt is made, the wrapping key is derived from `customerKey`, and the same DEK is re-wrapped with it. `key_management` is set to `customer`.
 5. The DEK is cached, so the workspace stays unsealed for 30 minutes.
 6. `Tenant Encryption Key Set (BYOK)` is audited. If the key wasn't hex, the response suggests using a 64-character hex key.
 
-Because the DEK stays the same, existing connector secrets don't need re-encrypting. Calling this again while unsealed **changes** the customer key.
+Because the DEK stays the same, existing connector secrets don't need re-encrypting. Calling this again while unsealed changes the customer key.
 
 ### 4. Unseal and seal
 
@@ -102,7 +97,7 @@ Because the DEK stays the same, existing connector secrets don't need re-encrypt
 
 There's no screen for this. BYOK is set up and unsealed through the API only, and the dashboard doesn't show whether a workspace is sealed, apart from gateway errors.
 
-## Changes by file
+## Code by file
 
 Encryption code, by file:
 
@@ -127,7 +122,7 @@ Not tested yet, and worth adding:
 - The three routes, including the owner-only check and `409`/`401`.
 - The gateway returning `423` while sealed, and working again after unseal.
 - The TTL expiry and sealing.
-- Changing the key while unsealed, and calling the set route while **sealed** (today that throws an unhandled error and returns `500`).
+- Changing the key while unsealed, and calling the set route while sealed (today that throws an unhandled error and returns `500`).
 - The Postgres migration of old connector secrets to the DEK.
 
 ## Known limitations

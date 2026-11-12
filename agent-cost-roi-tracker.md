@@ -2,19 +2,19 @@
 
 ## Introduction
 
-The **agent cost and ROI tracker** was Agent Prism's first live data feature. An integration:
+The agent cost and ROI tracker was Agent Prism's first live data feature. An integration:
 
-1. registers each agent **session**;
-2. reports **usage** as it goes (tokens, Copilot seat hours, or a cost), which Agent Prism prices from `config/pricing.json`;
-3. marks the session **completed**.
+1. registers each agent session;
+2. reports usage as it goes (tokens, Copilot seat hours, or a cost), which Agent Prism prices from `config/pricing.json`;
+3. marks the session completed.
 
-Agent Prism then shows, on a separate **`/dashboard`** page:
+Agent Prism then shows, on a separate `/dashboard` page:
 
 - **Active agents** by platform;
 - **cost** for today and the last 30 days, by platform;
 - **FTE hours saved**: completed sessions × hours a person would need;
-- **net savings** and the **ROI multiplier**;
-- which platforms are **connected**;
+- **net savings** and the ROI multiplier;
+- which platforms are connected;
 - a warning when prices haven't been checked for 90 days.
 
 The page refreshes every 5 seconds.
@@ -28,8 +28,6 @@ This document brings together:
 The parts are documented in more detail elsewhere: [sessions and timeout](sessions-and-timeout.md), [cost and pricing](cost-and-pricing.md), [savings and ROI](savings-and-roi.md) (session ROI) and [passive ingest](passive-ingest.md) (webhooks).
 
 Example: a CI job opens session `ci-4412` (`claude`) and reports two usage events of 1,500 input and 400 output tokens (Sonnet rates, $0.0105 each). It then sets `completed`. `/dashboard` shows 0 active agents, $0.021 today, 2 FTE hours saved, $170 of FTE cost against $0.021 of agent cost, and an ROI of about 8,095×.
-
-This is how the tracker works in the current code.
 
 ## What we have today
 
@@ -47,9 +45,7 @@ This is how the tracker works in the current code.
 
 ## What it does
 
-- Tracks agent cost **while** sessions run, for platforms that don't go through the gateway.
-- Turns agent work into a simple FTE comparison that a manager can read.
-- Shows the assumptions next to the ROI, so the number can be questioned.
+It tracks what agents cost while their sessions are running, for platforms that don't go through the gateway. It then turns that work into a simple FTE comparison a manager can read, and shows the assumptions next to the ROI figure so anyone can question it.
 
 ## Where the data comes from
 
@@ -83,9 +79,9 @@ See [sessions and timeout](sessions-and-timeout.md#api) for every route. `GET /a
 
 ## Dashboard / UI
 
-The **`/dashboard`** page has four cards (Active agents, Agent cost, ROI with its assumptions and negative values in red, Platform status) and a stale-price banner. Nothing in the main dashboard (`/`) links to it; it's only reached by typing `/dashboard`. None of these numbers appear in the main dashboard itself.
+The `/dashboard` page has four cards (Active agents, Agent cost, ROI with its assumptions and negative values in red, Platform status) and a stale-price banner. Nothing in the main dashboard (`/`) links to it; it's only reached by typing `/dashboard`. None of these numbers appear in the main dashboard itself.
 
-## Changes by file
+## Code by file
 
 Files involved:
 
@@ -109,8 +105,8 @@ Files involved:
 | Next.js API routes, SQLite / Turso, Drizzle | Raw `node:http` in `server.js`; file store or Postgres |
 | `config/pricing.yaml` | `config/pricing.json`, reloaded when it changes |
 | Single operator, no multi-tenancy | Workspaces and API keys; the page still uses one key from the browser |
-| Basic Auth on `/dashboard` **and `/api/`** | Basic Auth on `/dashboard` only. APIs use workspace credentials |
-| Real usage from Claude and Copilot APIs | Usage is **reported** by the integration. Copilot data from GitHub is a separate feature ([Copilot connector](copilot-connector-and-sync.md)) |
+| Basic Auth on `/dashboard` and `/api/` | Basic Auth on `/dashboard` only. APIs use workspace credentials |
+| Real usage from Claude and Copilot APIs | Usage is reported by the integration. Copilot data from GitHub is a separate feature ([Copilot connector](copilot-connector-and-sync.md)) |
 
 ## Known limitations
 
