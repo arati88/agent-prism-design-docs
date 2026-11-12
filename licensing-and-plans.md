@@ -144,6 +144,7 @@ What's tested today:
 
 - `test/license.test.js`: a licence from the vendor tool verifies and any edit breaks it; a different signing key is refused even with a known key id; the lifecycle valid → expiring → grace → expired; no or invalid licence means Free in production and no limits (labelled) in development; the effective plan for own installations and hosted plans; production without a licence is Free and the operator can't raise the plan; a forged licence is refused and explained; licensing never deletes data.
 - `test/user-management.test.js`, `test/sso.test.js`: seat checks on invite, reactivation and SSO.
+- `test/owner-console.test.js`: the vendor's owner console needs its one-time token, the local host and same-origin writes; it issues, registers, renews and inspects a licence; it changes hosted workspace plans within the licence ceiling; it still works without the signing key for checks and hosted plans.
 
 Not tested yet, and worth adding:
 

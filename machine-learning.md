@@ -166,6 +166,7 @@ What's tested today:
 - `test/ml-persistence.test.js`: saved weights load back; nothing saved returns `null`; workspaces are kept separate; saving again replaces the old weights; weights survive a restart.
 - `test/ml-feedback.test.js`: labels save and load back; an unknown run gives "not found"; only labelled runs come back, for one workspace; `updateRunTaskType` updates in place and ignores unknown runs; runs for ML cover the last 30 days and respect the limit.
 - `test/llm-classifier-injection.test.js`: content is wrapped in tags; a fake closing tag can't break out; normal content still classifies; 2 or more tools skip the LLM.
+- BDD: `features/11_ml_run_feedback.feature` and `features/ml-persistence.feature` (also in `test/features/`): the same feedback and saved-weight rules on the file store, and two model names in one workspace don't collide.
 
 Not tested yet, and worth adding:
 

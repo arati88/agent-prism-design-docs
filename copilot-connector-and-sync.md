@@ -148,6 +148,7 @@ What's tested today:
 - `test/copilot-roi.test.js`: report fields read, missing values count as 0; seat cost by plan; ROI cases; a failed seat sync shows stored seats with the reason, and fails with nothing stored; usage stored before activity was read is fetched again.
 - `test/copilot-model-usage.test.js`: model name parsing; version comparison; pasted tables and CSV; each finding, including healthy and edge cases; the billing call folds SKUs; HTTP errors surface; month checking; the sync reads the org and top users, keeps org rows when one user fails, returns manual rows without a token, and fails with nothing stored.
 - `test/copilot-budget.test.js`: effective AI-credit budget read; no budget means no cap; other budgets ignored; errors surface; breach rule; summary; sync once then served fresh; one seat failing keeps the others; failure with nothing stored; not configured.
+- BDD: `test/features/copilot-roi.feature` and `test/features/copilot-budget-breach.feature`: the ROI and budget breach rules in plain language.
 
 Not tested yet, and worth adding:
 

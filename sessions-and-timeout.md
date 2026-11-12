@@ -129,6 +129,7 @@ What's tested today:
 
 - `test/sessions.test.js`: open creates a running session; active counts include running and idle; completing a session; unknown id returns null; usage adds up; timeout marks stale sessions; another workspace can't touch a session by id; opening the same id twice returns the existing one.
 - `test/roi.test.js`: session ROI (see [savings and ROI](savings-and-roi.md)).
+- BDD: `test/features/session-retention.feature`: an old finished session is deleted; an old session that's still active, and a recent one, are kept.
 
 Not tested yet, and worth adding:
 

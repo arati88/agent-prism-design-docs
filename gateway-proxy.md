@@ -184,7 +184,8 @@ What's tested today:
 - `test/savings-report.test.js`: a call to `/v1/messages` over budget is refused and counted as avoided spend.
 - `test/cost.test.js`, `test/pricing.test.js`: the cost calculators the gateway uses.
 - `test/middleware.test.js`: the rate limiters.
-- `test/security.test.js`, `test/hardening.test.js`: outbound URL checks and security headers.
+- `test/outbound-url.test.js`: the address checks on the workspace's Azure endpoint.
+- `test/security.test.js`, `test/middleware.test.js`: security headers.
 
 Not tested yet, and worth adding:
 

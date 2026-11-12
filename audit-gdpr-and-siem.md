@@ -136,6 +136,7 @@ What's tested today:
 
 - `test/privacy.test.js`: prompt capture and the classifier are off by default; audit IPs are shortened by default; fleet snapshots lose prompt snippets, paths and command lines; failed-ingest copies keep metrics but drop prompt text; `scrubPiiDeep` reaches nested content; the browser and server only contact expected hosts; no tracking SDKs; personal data sent to ingest and fleet never reaches disk; the audit log stores a shortened IP; the dashboard CSP blocks inline and third-party scripts; **GDPR erasure removes runs and every per-person telemetry record**.
 - `test/user-management.test.js`: audit CSV export neutralises spreadsheet formulas.
+- BDD: `features/client_ip_server.feature`: behind a trusted proxy the audit trail records the forwarded client IP; otherwise a spoofed `X-Forwarded-For` is ignored.
 
 Not tested yet, and worth adding:
 

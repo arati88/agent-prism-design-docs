@@ -120,6 +120,7 @@ What's tested today:
 
 - `test/byok-key-derivation.test.js`: the same secret and salt give the same key; a different salt gives a different key; a 64-character hex key is used directly; no salt falls back to legacy SHA-256; salted and legacy keys differ; salts are random.
 - `test/byok-file-store.test.js`: set then unseal works with a fresh salt; the wrong secret is refused; a legacy unsalted workspace still unseals with its original secret.
+- BDD: `features/05_connector_management.feature`: creating a connector never returns its secret, and a bad provider or mode is refused.
 
 Not tested yet, and worth adding:
 

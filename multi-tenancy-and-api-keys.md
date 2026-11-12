@@ -228,12 +228,12 @@ What's tested today:
 - `test/ip-allowlist.test.js`: exact addresses, IPv4 ranges, empty allowlist allows everyone, valid entries.
 - `test/admin-lockout.test.js`: wrong admin-secret guesses are locked out.
 - `test/license.test.js`: plans above the license are refused.
-- `test/auth-refresh.test.js`: token refresh.
+- `test/hardening.test.js`: bootstrapping a second time gets `409`; one workspace can't update another's data; the same run id in two workspaces stays two separate runs.
 - BDD: `features/06_cost_leak_tenant_isolation.feature`: one workspace's cost leaks never show in another.
 
 Not tested yet, and worth adding:
 
-- Bootstrap twice → `409`, and the first answer contains a working key.
+- Token refresh. `test/auth-refresh.test.js` exists but is empty.
 - A revoked key and a token made from it are both refused.
 - A broad isolation test: workspace A's key can't read or change any of workspace B's runs, connectors, sessions or keys, on every route.
 - `DELETE /api/tenant/api-keys` keeps the calling key.

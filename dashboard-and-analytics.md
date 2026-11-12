@@ -247,6 +247,8 @@ What's tested today:
 - `test/scoring.test.js`: each part of the score moves the right way (success, budget, latency, autonomy, guardrails, retries); no crash with 0 runs, all-failed runs, 0 or negative latency, or a budget of 0; the score stays between 0 and 100; a perfect run is near 100 and a worst-case run near 0; the fixed formula is used when there's no model.
 - `test/store.test.js`: over-budget runs are a budget breach; retry-heavy runs are a retry spiral; healthy runs aren't flagged; snapshot sums are correct; workspaces don't see each other's runs; empty run sets give zeros; the Cost Leak Radar and ROI summary aren't emptied by the alert feed's once-an-hour rule; dashboard costs match the cost calculators.
 - `test/token-efficiency.test.js`: the snapshot includes Token Coach suggestions.
+- `test/hardening.test.js`: the dashboard returns exact totals without dumping raw runs, chart series are bounded, and `GET /api/runs` is paged.
+- BDD: `features/04_dashboard_cost_leak_regression.feature` and `07_dashboard_cost_leak_stability.feature`: reloading the dashboard or opening the leaks feed first doesn't clear cost leaks, and the dashboard and ROI summary agree on the leak count. `06_cost_leak_tenant_isolation.feature`: one workspace's leak never hides another's.
 
 One test in `test/scoring.test.js` is still named "currently fails - see scoring.js bug", for a run with no budget at all. That bug is already fixed (`scoring.js` now falls back to a valid number), so only the test's name and comment are out of date.
 

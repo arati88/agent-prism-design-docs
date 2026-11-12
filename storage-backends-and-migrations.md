@@ -214,11 +214,11 @@ What's tested today:
 
 - `test/file-store.test.js`: a valid file reads; every write also writes the backup; a corrupted file recovers from the backup; a corrupted file with no backup gives a clear error.
 - `test/db-ssl.test.js`: TLS off, unverified default, public-CA verification, own-CA verification.
+- `test/hardening.test.js`: many simultaneous writes to the file backend are all kept.
 - `test/postgres.integration.test.js` (runs only with a test database): three servers starting together on a fresh database all become ready; a run id reused by another workspace can't take over the original; `NaN` and wrong types never reach the database; sessions are scoped per workspace; dashboard totals count every run; the server survives its connections being killed mid-traffic; users, team report, seat counts and per-workspace retention work on Postgres.
 
 Not tested yet, and worth adding:
 
-- Many simultaneous writes to the file backend all being kept (the 400-ingest case).
 - A failing migration rolls back and stops the rest.
 - Row-level security actually hiding another workspace's rows when the app role has `NOBYPASSRLS`.
 - Both backends giving the same answer for the same calls (they're two separate implementations).

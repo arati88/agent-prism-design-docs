@@ -146,12 +146,18 @@ Hardening code, by file:
 
 - `test/security.test.js`: validation (missing field, bad enum, too long, valid body, session update); startup exits with the default secret in production; security headers (nosniff, frame options, referrer policy, no HSTS outside production); CORS allowed and refused; rate limiter (under the limit, blocks at limit+1, separate keys, window resets); path traversal (old code vulnerable, new code contained, normal paths fine).
 - `test/hardening.test.js`: malformed input classes against a live server (see [architecture and load testing](architecture-and-load-testing.md)).
+- `test/middleware.test.js`: the rate limiter for each workspace; CORS preflight, refused origins and non-HTTPS origins in production; the full security header set; the CSP never allows inline or third-party scripts, and its nonce is fresh on every call; HSTS only in production.
+- `test/outbound-url.test.js`: workspace-supplied URLs. Loopback, link-local and every cloud's metadata address are blocked, including IPv6 forms; private ranges only when allowed; HTTPS only, no embedded credentials; named internal hosts with `OUTBOUND_ALLOWED_HOSTS`.
+- `test/timing-safe-compare.test.js`: secret comparison for equal, different, different-length and empty values.
+- `test/client-ip.test.js`, BDD `features/client_ip_resolution.feature` and `client_ip_server.feature`: `X-Forwarded-For` is used only behind a trusted proxy, and a spoofed header is ignored; the bootstrap limiter counts forwarded clients separately only behind a trusted proxy.
+- `test/admin-lockout.test.js`: wrong admin-secret guesses are locked out after the per-minute limit.
+- `test/validation.test.js`: the validator itself and each route's schema.
 
 Not tested yet, and worth adding:
 
 - HTTP-level `413` and `415`.
-- The CSP nonce on HTML pages.
-- Bootstrap's 5-an-hour limit and the admin-failure limiter.
+- The CSP nonce in served HTML pages (the middleware is tested, the pages aren't).
+- Bootstrap's 5-an-hour limit at its edge (the BDD scenarios only check that limiting happens).
 
 ## Known limitations
 
